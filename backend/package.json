@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "npx nodemon",
     "build": "rm -rf dist && tsup",
+    "generate": "npx drizzle-kit generate",
+    "migrate": "npx drizzle-kit migrate",
+    "studio": "pnpm drizzle-kit studio --verbose",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,12 +17,16 @@
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
     "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.44.2",
     "express": "^5.1.0",
+    "pg": "^8.16.0",
     "zod": "^3.25.55"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.4",
+    "drizzle-kit": "^0.31.1",
     "nodemon": "^3.1.10",
     "tsup": "^8.5.0",
     "tsx": "^4.19.4",
