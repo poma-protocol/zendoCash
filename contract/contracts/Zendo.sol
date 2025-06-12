@@ -32,7 +32,7 @@ contract Zendo {
         uint256 endDate,
         address tokenAddress
     );
->
+
     function createDeal(
         uint32 _id,
         string memory _dealName,
@@ -85,5 +85,5 @@ contract Zendo {
         deal.isActive = true;
 
     }
-    
+
 }
