@@ -1,0 +1,1 @@
+export const ARBITRUM_CHAIN = "arbitrum"
