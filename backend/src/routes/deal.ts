@@ -59,7 +59,8 @@ router.get("/all", async(req , res) => {
 router.post("/activate/:id", async(req, res) => {
     try {
         const id = Number.parseInt(req.params.id);
-        
+        await dealsController.markAsActivated(id, dealModel);
+        res.status(201).json({message: "Deal marked as activated"})
     } catch(err) {
         if (err instanceof MyError) {
             res.status(400).json({message: err.message});
@@ -77,7 +78,7 @@ router.post("/", async(req, res) => {
         if (parsed.success) {
             const data = parsed.data;
             const dealID = await dealsController.create(data, smartContract, dealModel);
-            res.json({dealID: dealID});
+            res.status(201).json({dealID: dealID});
         } else {
             const error = parsed.error.issues[0].message;
             res.status(400).json({message: error});

@@ -119,6 +119,18 @@ export class DealsModel {
             throw new Error("Error getting deal details");
         }
     }
+
+    async markDealActivatedInDB(dealID: number) {
+        try {
+            await db.update(dealsTable).set({
+                activated: true,
+                activationDate: new Date()
+            }).where(eq(dealsTable.id, dealID));
+        } catch(err) {
+            console.error("Error marking deal as activated in DB", err);
+            throw new Error("Error marking deals as activated");
+        }
+    }
 }
 
 const dealModel = new DealsModel();

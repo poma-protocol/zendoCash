@@ -100,8 +100,18 @@ export class DealsController {
 
     async markAsActivated(dealID: number, dealsModel: DealsModel) {
         try {
-            const deal = await dealsModel
+            const deal = await dealsModel.get(dealID);
+            if (deal === null) {
+                throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
+            }
+
+            // Update deal in DB
+            await dealsModel.markDealActivatedInDB(dealID);
         } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+
             console.log("Error marking deal as activated", err);
             throw new Error("Error marking deal as activated");
         }

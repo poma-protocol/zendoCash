@@ -7,5 +7,8 @@ export const smartContractMock = {
 } as SmartContract
 
 export const dealsModelMock = {
-    storeDealInDBAndContract: jest.fn()
+    storeDealInDBAndContract: jest.fn(),
+    get: jest.fn(),
+    getMany: jest.fn(),
+    markDealActivatedInDB: jest.fn()
 } as DealsModel

@@ -4,28 +4,28 @@ import { MyError } from "../../src/errors/type";
 import { dealsModelMock, smartContractMock } from "../mocks";
 
 describe("Deal Controller Tests", () => {
+    const invalidAddress = "invalid";
+    const validAddress = "valid";
+
+    const testDealController = new DealsController();
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const createdDealID = 100;
+
+    const createArgs = {
+        contract_address: validAddress,
+        minimum_amount_hold: 1,
+        minimum_days_hold: 1,
+        reward: 1,
+        max_rewards_give_out: 1,
+        coin_owner_address: validAddress,
+        start_date: today,
+        end_date: tomorrow
+    }
+
     describe("Create deal tests", () => {
-        const invalidAddress = "invalid";
-        const validAddress = "valid";
-
-        const testDealController = new DealsController();
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-
-        const createdDealID = 100;
-
-        const createArgs = {
-            contract_address: validAddress,
-            minimum_amount_hold: 1,
-            minimum_days_hold: 1,
-            reward: 1,
-            max_rewards_give_out: 1,
-            coin_owner_address: validAddress,
-            start_date: today,
-            end_date: tomorrow
-        }
-
         beforeEach(() => {
             smartContractMock.isValidAddress = jest.fn().mockImplementation((address) => {
                 if (address === validAddress) {
@@ -94,12 +94,56 @@ describe("Deal Controller Tests", () => {
             }
         });
 
-        it("Should create deal", async() => {
+        it("Should create deal", async () => {
             try {
                 const dealID = await testDealController.create(createArgs, smartContractMock, dealsModelMock);
                 expect(dealID).toBe(createdDealID);
-            } catch(err) {
+                expect(dealsModelMock.storeDealInDBAndContract).toHaveBeenCalledWith(createArgs, smartContractMock);
+                expect(dealsModelMock.storeDealInDBAndContract).toHaveBeenCalledTimes(1);
+            } catch (err) {
                 console.error("Error creating deal", err);
+                expect(false).toBe(true);
+            }
+        })
+    });
+
+    describe("Mark deal as activated test", () => {
+        beforeAll(async () => {
+            dealsModelMock.get = jest.fn().mockImplementation((id: number) => {
+                return new Promise((res, rej) => {
+                    if (id === createdDealID) {
+                        res(createArgs);
+                    } else {
+                        res(null);
+                    }
+                })
+            })
+        })
+
+        it("should fail if deal does not exist", async () => {
+            try {
+                await testDealController.markAsActivated(123123, dealsModelMock);
+                expect(false).toBe(true);
+            } catch(err) {
+                if (err instanceof MyError) {
+                    if (err.message === Errors.DEAL_DOES_NOT_EXIST) {
+                        expect(true).toBe(true);
+                        return;
+                    }
+                }
+
+                console.log("Unexpected error", err);
+                expect(false).toBe(true);
+            }
+        });
+
+        it ("should mark deal as activated", async() => {
+            try {
+                await testDealController.markAsActivated(createdDealID, dealsModelMock);
+                expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledTimes(1)
+                expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledWith(createdDealID);
+            } catch(err) {
+                console.log("Unexpected error", err);
                 expect(false).toBe(true);
             }
         })
