@@ -14,4 +14,6 @@ export const createDealSchema = z.object({
     end_date: z.date({message: "End date must be a date"}).min(today, {message: "End date can't be before today"})
 });
 
+export const addressSchema = z.string({message: "Address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Must be a valid ethereum address"});
+
 export type CreateDealsType = z.infer<typeof createDealSchema>;
