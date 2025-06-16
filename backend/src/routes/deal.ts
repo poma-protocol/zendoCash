@@ -56,6 +56,23 @@ router.get("/all", async(req , res) => {
     }
 });
 
+router.get("/player/:address", async (req , res) => {
+    try {
+        const parsed = addressSchema.safeParse(req.params.address);
+        if (parsed.success) {
+            const address = parsed.data;
+            const deals = await dealsController.getMany({playerAddress: address}, dealModel, smartContract);
+            res.json(deals);
+        } else {
+            const error = parsed.error.issues[0].message;
+            res.status(400).json({message: error});
+        }
+    } catch(err) {
+        console.error("Error getting deals that a player has joined in", err);
+        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+    }
+});
+
 router.post("/activate/:id", async(req, res) => {
     try {
         const id = Number.parseInt(req.params.id);

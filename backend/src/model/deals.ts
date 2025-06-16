@@ -94,9 +94,29 @@ export class DealsModel {
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
 
                 return deals
-            }
+            } else if (args.playerAddress) {
+                const deals = await db.select({
+                    id: dealsTable.id,
+                    contract_address: dealsTable.contract_address,
+                    minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    reward: dealsTable.reward,
+                    max_rewards: dealsTable.max_rewards,
+                    coin_owner_address: dealsTable.coin_owner_address,
+                    start_date: dealsTable.start_date,
+                    endDate: dealsTable.endDate,
+                    creationTxHash: dealsTable.creationTxHash,
+                    chain: dealsTable.chain,
+                    activated: dealsTable.activated,
+                    creationDate: dealsTable.creationDate,
+                    activationDate: dealsTable.activationDate,
+                    done: userDealsTable.done
+                }).from(dealsTable)
+                    .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
+                    .where(eq(userDealsTable.userAddress, args.playerAddress));
 
-            const deals = await db.select({
+                return deals;
+            } else {
+                const deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
@@ -112,7 +132,8 @@ export class DealsModel {
                     activationDate: dealsTable.activationDate
                 }).from(dealsTable);
 
-            return deals;
+                return deals;
+            }
         } catch (err) {
             console.error("Error getting deal details from database", err);
             throw new Error("Error getting deal details");
@@ -125,7 +146,7 @@ export class DealsModel {
                 activated: true,
                 activationDate: new Date()
             }).where(eq(dealsTable.id, dealID));
-        } catch(err) {
+        } catch (err) {
             console.error("Error marking deal as activated in DB", err);
             throw new Error("Error marking deals as activated");
         }
@@ -138,7 +159,7 @@ export class DealsModel {
             }).from(dealsTable).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
 
             return results.length > 0;
-        } catch(err) {
+        } catch (err) {
             console.error("Error checking if user has joined deal in database", err);
             throw new Error("Error checking if user has joined deal");
         }
@@ -156,7 +177,7 @@ export class DealsModel {
 
                 await smartContract.join(dealID, address);
             });
-        } catch(err) {
+        } catch (err) {
             console.error("Error updating db and contract", err);
             throw new Error("Error updating db and contract");
         }

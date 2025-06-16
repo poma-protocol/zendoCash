@@ -18,10 +18,13 @@ export interface DealDetails {
     activated: boolean,
     creationDate: Date,
     activationDate: Date | null,
+    done?: boolean,
+    
 }
 
 export interface GetManyArgs {
-    coinAddress?: string
+    coinAddress?: string,
+    playerAddress?: string
 }
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
@@ -65,7 +68,7 @@ export class DealsController {
             }
 
             return deal;
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -83,13 +86,21 @@ export class DealsController {
                     throw new MyError(Errors.INVALID_CONTRACT_ADDRESS);
                 }
 
-                const deals = await dealsModel.getMany({coinAddress: args.coinAddress});
+                const deals = await dealsModel.getMany({ coinAddress: args.coinAddress });
+                return deals;
+            } else if (args.playerAddress) {
+                const isPlayerAddressValid = smartcontract.isValidAddress(args.playerAddress);
+                if (isPlayerAddressValid === false) {
+                    throw new MyError(Errors.INVALID_ADDRESS);
+                }
+
+                const deals = await dealsModel.getMany({playerAddress: args.playerAddress});
+                return deals;
+            } else {
+                const deals = await dealsModel.getMany({});
                 return deals;
             }
-
-            const deals = await dealsModel.getMany({});
-            return deals;
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -107,7 +118,7 @@ export class DealsController {
 
             // Update deal in DB
             await dealsModel.markDealActivatedInDB(dealID);
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -139,7 +150,7 @@ export class DealsController {
             const counter = hasBalance === true ? 1 : 0;
             await dealModel.updateDBAndContract(args.deal_id, args.address, counter, smartContract);
             return hasBalance;
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
