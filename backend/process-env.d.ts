@@ -4,6 +4,7 @@ declare global {
             PORT: number,
             DATABASE_URL: string,
             ARBITRUM_RPC_URL: string,
+            ALCHEMY_KEY: string
         }
     }
 }

@@ -17,3 +17,10 @@ export const createDealSchema = z.object({
 export const addressSchema = z.string({message: "Address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Must be a valid ethereum address"});
 
 export type CreateDealsType = z.infer<typeof createDealSchema>;
+
+export const joinSchema = z.object({
+    address: z.string({message: "Address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Must be a valid ethereum address"}),
+    deal_id: z.number({message: "Invalid deal"})
+});
+
+export type JoinSchemaType = z.infer<typeof joinSchema>;

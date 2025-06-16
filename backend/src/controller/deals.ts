@@ -1,7 +1,7 @@
 import { Errors } from "../errors/messages";
 import { MyError } from "../errors/type";
 import { SmartContract } from "../smartContract/class";
-import { CreateDealsType } from "../types";
+import { CreateDealsType, JoinSchemaType } from "../types";
 import { DealsModel } from "../model/deals";
 
 export interface DealDetails {
@@ -114,6 +114,38 @@ export class DealsController {
 
             console.log("Error marking deal as activated", err);
             throw new Error("Error marking deal as activated");
+        }
+    }
+
+    // Returns whether or not the user had the required amount of coin when joining the deal
+    async join(args: JoinSchemaType, smartContract: SmartContract, dealModel: DealsModel): Promise<boolean> {
+        try {
+            const isValidAddress = smartContract.isValidAddress(args.address);
+            if (!isValidAddress) {
+                throw new MyError(Errors.INVALID_ADDRESS);
+            }
+
+            const deal = await dealModel.get(args.deal_id);
+            if (deal === null) {
+                throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
+            }
+
+            const hasUserJoined = await dealModel.hasUserJoinedDeal(args.deal_id, args.address);
+            if (hasUserJoined === true) {
+                throw new MyError(Errors.ALREADY_JOINED);
+            }
+
+            const hasBalance = await smartContract.doesUserHaveBalance(args.address, deal.contract_address, deal.reward);
+            const counter = hasBalance === true ? 1 : 0;
+            await dealModel.updateDBAndContract(args.deal_id, args.address, counter, smartContract);
+            return hasBalance;
+        } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+
+            console.error("Error joining player to deal", err);
+            throw new Error("Error joining player");
         }
     }
 }

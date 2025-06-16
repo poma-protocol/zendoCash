@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { MyError } from "../errors/type";
 import { Errors } from "../errors/messages";
-import { addressSchema, createDealSchema } from "../types";
+import { addressSchema, createDealSchema, joinSchema } from "../types";
 import dealsController from "../controller/deals";
 import smartContract from "../smartContract";
 import dealModel from "../model/deals";
@@ -93,5 +93,20 @@ router.post("/", async(req, res) => {
         }
     }
 });
+
+router.post("/join", async (req , res) => {
+    try {
+        const parsed = joinSchema.safeParse(req.body);
+        if (parsed.success) {
+            const data = parsed.data;
+        } else {
+            const error = parsed.error.issues[0].message;
+            res.status(400).json({message: error});
+        }
+    } catch(err) {
+        console.error("Error joining deal at endpoint", err);
+        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+    }
+})
 
 export default router;

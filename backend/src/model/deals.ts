@@ -1,11 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
-import { dealsTable } from "../db/schema";
+import { dealsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
-import { MyError } from "../errors/type";
 
 export class DealsModel {
     async storeDealInDBAndContract(args: CreateDealsType, smartContract: SmartContract): Promise<number> {
@@ -129,6 +128,37 @@ export class DealsModel {
         } catch(err) {
             console.error("Error marking deal as activated in DB", err);
             throw new Error("Error marking deals as activated");
+        }
+    }
+
+    async hasUserJoinedDeal(dealID: number, address: string): Promise<boolean> {
+        try {
+            const results = await db.select({
+                deal: userDealsTable.dealID
+            }).from(dealsTable).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+
+            return results.length > 0;
+        } catch(err) {
+            console.error("Error checking if user has joined deal in database", err);
+            throw new Error("Error checking if user has joined deal");
+        }
+    }
+
+    async updateDBAndContract(dealID: number, address: string, counter: number, smartContract: SmartContract) {
+        try {
+            await db.transaction(async (tx) => {
+                await tx.insert(userDealsTable).values({
+                    userAddress: address,
+                    dealID: dealID,
+                    counter: counter,
+                    done: false,
+                });
+
+                await smartContract.join(dealID, address);
+            });
+        } catch(err) {
+            console.error("Error updating db and contract", err);
+            throw new Error("Error updating db and contract");
         }
     }
 }
