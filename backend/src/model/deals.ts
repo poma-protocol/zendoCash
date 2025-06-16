@@ -6,6 +6,22 @@ import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
 
+interface RawDealDetails {
+    id: number;
+    contract_address: string;
+    minimum_amount_to_hold: number;
+    reward: number;
+    max_rewards: number;
+    coin_owner_address: string;
+    start_date: Date;
+    endDate: Date;
+    creationTxHash: string | null;
+    chain: string;
+    activated: boolean;
+    creationDate: Date;
+    activationDate: Date | null;
+}
+
 export class DealsModel {
     async storeDealInDBAndContract(args: CreateDealsType, smartContract: SmartContract): Promise<number> {
         try {
@@ -67,7 +83,28 @@ export class DealsModel {
             }).from(dealsTable).where(eq(dealsTable.id, id));
 
             const deal = deals[0] ?? null;
-            return deal
+            if (deal === null) {
+                return null;
+            }
+
+            const d = deals[0];
+            const players = await db.select({
+                address: userDealsTable.userAddress,
+                done: userDealsTable.done
+            }).from(userDealsTable)
+                .where(eq(userDealsTable.dealID, d.id));
+
+            const totalPlayers = players.length;
+            let rewardedPlayers = 0;
+            for (const p of players) {
+                if (p.done === true) {
+                    rewardedPlayers++;
+                }
+            }
+            const playerAddresses = players.map((d) => d.address);
+
+            const toReturn = { ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses };
+            return toReturn;
         } catch (err) {
             console.error("Error getting deals from database", err);
             throw new Error("Erorr getting deals from database");
@@ -76,8 +113,10 @@ export class DealsModel {
 
     async getMany(args: GetManyArgs): Promise<DealDetails[]> {
         try {
+            let deals: RawDealDetails[] = [];
+
             if (args.coinAddress) {
-                const deals = await db.select({
+                deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
@@ -92,10 +131,8 @@ export class DealsModel {
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
-
-                return deals
             } else if (args.playerAddress) {
-                const deals = await db.select({
+                deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
@@ -113,10 +150,8 @@ export class DealsModel {
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress));
-
-                return deals;
             } else {
-                const deals = await db.select({
+                deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
@@ -131,9 +166,29 @@ export class DealsModel {
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate
                 }).from(dealsTable);
-
-                return deals;
             }
+
+            const toReturn: DealDetails[] = [];
+            deals.map(async (d) => {
+                const players = await db.select({
+                    address: userDealsTable.userAddress,
+                    done: userDealsTable.done
+                }).from(userDealsTable)
+                    .where(eq(userDealsTable.dealID, d.id));
+
+                const totalPlayers = players.length;
+                let rewardedPlayers = 0;
+                for (const p of players) {
+                    if (p.done === true) {
+                        rewardedPlayers++;
+                    }
+                }
+                const playerAddresses = players.map((d) => d.address);
+
+                toReturn.push({ ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses });
+            });
+
+            return toReturn;
         } catch (err) {
             console.error("Error getting deal details from database", err);
             throw new Error("Error getting deal details");

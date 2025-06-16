@@ -19,7 +19,9 @@ export interface DealDetails {
     creationDate: Date,
     activationDate: Date | null,
     done?: boolean,
-    
+    players: string[],
+    total_players: number,
+    rewarded_players: number
 }
 
 export interface GetManyArgs {
