@@ -84,16 +84,11 @@ contract Zendo {
         return _id;
     }
 
-    function activateDeal(uint256 _id, address tokenAddress) external {
+    function activateDeal(uint256 _id) external {
         Deal storage deal = deals[_id];
         require(deal.id == _id, "Deal does not exist");
         require(!deal.isActive, "Deal is already active");
         require(deal.endDate >= block.timestamp, "Deal has ended");
-
-        IERC20 token = IERC20(tokenAddress);
-        uint256 amount = deal.rewards;
-        bool success = token.transferFrom(msg.sender, address(this), amount);
-        require(success, "Transfer failed");
         deal.isActive = true;
     }
 
@@ -105,11 +100,7 @@ contract Zendo {
             deal.currentParticipantCount < deal.maxParticipants,
             "Max participants reached"
         );
-        require(
-            block.timestamp >= deal.startDate &&
-                block.timestamp <= deal.endDate,
-            "Deal is not active"
-        );
+        
 
         Participant storage p = dealParticipants[_id][participant];
         require(!p.isRegistered, "Participant already registered");
@@ -128,7 +119,7 @@ contract Zendo {
         Deal storage deal = deals[_id];
         require(deal.id == _id, "Deal does not exist");
         require(deal.isActive, "Deal is not active");
-        require(deal.endDate > block.timestamp, "Deal has ended");
+        // require(deal.endDate > block.timestamp, "Deal has ended");
 
         Participant storage p = dealParticipants[_id][participant];
         require(p.isRegistered, "Participant not found");
@@ -143,8 +134,17 @@ contract Zendo {
         p.isRewarded = true;
     }
 
-    
     function dealExists(uint256 id) public view returns (uint256) {
         return deals[id].id == id ? 1 : 0;
+    }
+
+    function getParticipant(
+        uint256 _id,
+        address participant
+    ) public view returns (address) {
+        return dealParticipants[_id][participant].participantAddress;
+    }
+    function isDealActive(uint256 _id) public view returns (bool) {
+        return deals[_id].isActive;
     }
 }
