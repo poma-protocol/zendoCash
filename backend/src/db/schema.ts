@@ -17,4 +17,11 @@ export const dealsTable = pgTable("deals", {
     activationDate: timestamp("activationDate"),
 }, (table) => [
     check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
-])
+]);
+
+export const userDealsTable = pgTable("userDeals", {
+    userAddress: text('address').notNull(),
+    dealID: integer('dealID').notNull().references(() => dealsTable.id),
+    counter: integer('counter').notNull(),
+    done: boolean('done').notNull()
+});
