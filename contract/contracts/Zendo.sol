@@ -5,16 +5,16 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Zendo {
     struct Deal {
-        uint32 id;
+        uint256 id;
         string dealName;
         address creator;
-        uint32 maxParticipants;
+        uint256 maxParticipants;
         uint256 rewards;
         uint256 goal;
-        uint16 numberOfDays;
+        uint256 numberOfDays;
         uint256 startDate;
         uint256 endDate;
-        uint32 currentParticipantCount;
+        uint256 currentParticipantCount;
         bool isActive;
         address tokenAddress;
     }
@@ -26,34 +26,34 @@ contract Zendo {
         bool isRegistered;
     }
 
-    mapping(uint32 => Deal) public deals;
-    mapping(uint32 => mapping(address => Participant)) public dealParticipants;
+    mapping(uint256 => Deal) public deals;
+    mapping(uint256 => mapping(address => Participant)) public dealParticipants;
 
     event DealCreated(
-        uint32 id,
+        uint256 id,
         string dealName,
         address creator,
-        uint32 maxParticipants,
+        uint256 maxParticipants,
         uint256 rewards,
         uint256 goal,
-        uint16 numberOfDays,
+        uint256 numberOfDays,
         uint256 startDate,
         uint256 endDate,
         address tokenAddress
     );
 
     function createDeal(
-        uint32 _id,
+        uint256 _id,
         string memory _dealName,
-        uint32 _maxParticipants,
+        uint256 _maxParticipants,
         address _creator,
         uint256 _rewards,
         uint256 _goal,
-        uint16 _numberOfDays,
+        uint256 _numberOfDays,
         uint256 _startDate,
         uint256 _endDate,
         address _tokenAddress
-    ) public returns (uint32) {
+    ) public returns (uint256) {
         Deal storage newDeal = deals[_id];
         newDeal.id = _id;
         newDeal.dealName = _dealName;
@@ -84,7 +84,7 @@ contract Zendo {
         return _id;
     }
 
-    function activateDeal(uint32 _id, address tokenAddress) external {
+    function activateDeal(uint256 _id, address tokenAddress) external {
         Deal storage deal = deals[_id];
         require(deal.id == _id, "Deal does not exist");
         require(!deal.isActive, "Deal is already active");
@@ -97,13 +97,17 @@ contract Zendo {
         deal.isActive = true;
     }
 
-    function addParticipant(uint32 _id, address participant) external {
+    function addParticipant(uint256 _id, address participant) external {
         Deal storage deal = deals[_id];
         require(deal.id == _id, "Deal does not exist");
         require(deal.isActive, "Deal is not active");
-        require(deal.currentParticipantCount < deal.maxParticipants, "Max participants reached");
         require(
-            block.timestamp >= deal.startDate && block.timestamp <= deal.endDate,
+            deal.currentParticipantCount < deal.maxParticipants,
+            "Max participants reached"
+        );
+        require(
+            block.timestamp >= deal.startDate &&
+                block.timestamp <= deal.endDate,
             "Deal is not active"
         );
 
@@ -120,7 +124,7 @@ contract Zendo {
         deal.currentParticipantCount += 1;
     }
 
-    function rewardUser(uint32 _id, address participant) external {
+    function rewardUser(uint256 _id, address participant) external {
         Deal storage deal = deals[_id];
         require(deal.id == _id, "Deal does not exist");
         require(deal.isActive, "Deal is not active");
@@ -137,5 +141,10 @@ contract Zendo {
 
         p.rewardsClaimed = amount;
         p.isRewarded = true;
+    }
+
+    
+    function dealExists(uint256 id) public view returns (uint256) {
+        return deals[id].id == id ? 1 : 0;
     }
 }
