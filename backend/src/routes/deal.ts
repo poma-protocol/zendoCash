@@ -99,6 +99,8 @@ router.post("/join", async (req , res) => {
         const parsed = joinSchema.safeParse(req.body);
         if (parsed.success) {
             const data = parsed.data;
+            const hasBalance = await dealsController.join(data, smartContract, dealModel);
+            res.status(201).json({hasBalance});
         } else {
             const error = parsed.error.issues[0].message;
             res.status(400).json({message: error});
