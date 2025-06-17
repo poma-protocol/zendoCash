@@ -7,6 +7,8 @@ describe("Listener processor tests", () => {
     const playerWithoutBalance = "without balance";
     const dealID = 1;;
     const today = new Date();
+    const yesterDay = new Date(today);
+    yesterDay.setDate(today.getDate() - 1);
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     const deal: MainFunctionDeals = {
@@ -18,7 +20,11 @@ describe("Listener processor tests", () => {
         endDate: tomorrow,
         rewards_sent: 2,
         players: [
-            playerAddress
+            {
+                address: playerAddress,
+                lastCountUpdateTime: yesterDay,
+                count: 1
+            }
         ]
     }
 
@@ -41,9 +47,24 @@ describe("Listener processor tests", () => {
     });
 
     it("should reset count and notify frontend if player has not met minimum balance", async () => {
-        await processMainDeal({...deal, players: [playerWithoutBalance]}, dealsControllerMock, smartContractMock, dealsModelMock);
+        await processMainDeal({...deal, players: [{address: playerWithoutBalance, lastCountUpdateTime: today, count: 1}]}, dealsControllerMock, smartContractMock, dealsModelMock);
         expect(dealsControllerMock.markEnded).toHaveBeenCalledTimes(0);
         expect(dealsControllerMock.resetCount).toHaveBeenCalledTimes(1);
         expect(dealsControllerMock.resetCount).toHaveBeenCalledWith(dealID, playerWithoutBalance, dealsModelMock);
-    })
+    });
+
+    it("should not update count if player's count was last updated on the same day", async () => {
+        await processMainDeal({...deal, players: [{address: playerAddress, lastCountUpdateTime: today, count: 1}]}, dealsControllerMock, smartContractMock, dealsModelMock);
+        expect(dealsControllerMock.markEnded).toHaveBeenCalledTimes(0);
+        expect(dealsControllerMock.resetCount).toHaveBeenCalledTimes(0);
+        expect(dealsControllerMock.updateCount).toHaveBeenCalledTimes(0);
+    });
+
+    it("should update count if player's count was last updated at least yesterday", async() => {
+        await processMainDeal(deal, dealsControllerMock, smartContractMock, dealsModelMock);
+        expect(dealsControllerMock.markEnded).toHaveBeenCalledTimes(0);
+        expect(dealsControllerMock.resetCount).toHaveBeenCalledTimes(0);
+        expect(dealsControllerMock.updateCount).toHaveBeenCalledTimes(1);
+        expect(dealsControllerMock.updateCount).toHaveBeenCalledWith(dealID, deal.players[0], deal.minimum_days_hold, smartContractMock)
+    });
 });

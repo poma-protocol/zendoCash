@@ -33,6 +33,12 @@ export interface GetManyArgs {
     playerAddress?: string
 }
 
+interface Player {
+    address: string,
+    lastCountUpdateTime: Date | null,
+    count: number
+}
+
 export interface MainFunctionDeals {
     deal_id: number,
     coin_address: string,
@@ -41,7 +47,7 @@ export interface MainFunctionDeals {
     rewards_sent: number,
     minimum_days_hold: number,
     endDate: Date,
-    players: string[]
+    players: Player[]
 }
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
@@ -192,11 +198,19 @@ export class DealsController {
             for await (const deal of dealResults) {
                 const playersResults = await db.select({
                     address: userDealsTable.userAddress,
+                    lastCountUpdateTime: userDealsTable.lastCountUpdateTime,
+                    counter: userDealsTable.counter,
                     txHash: userDealsTable.rewardSentTxHash
                 }).from(userDealsTable).where(eq(userDealsTable.dealID, deal.id));
 
                 const participatingPlayers = playersResults.filter((p) => p.txHash === null);
-                const players = participatingPlayers.map((p) => p.address);
+                const players: Player[] = participatingPlayers.map((p) => {
+                    return {
+                        address: p.address,
+                        lastCountUpdateTime: p.lastCountUpdateTime,
+                        count: p.counter
+                    }
+                });
                 let rewardsSent = 0;
                 for (const p of playersResults) {
                     if (p.txHash !== null) {
@@ -241,6 +255,30 @@ export class DealsController {
         } catch(err) {
             console.error("Error reseting count for user", err);
             throw new Error("Error resetting count");
+        }
+    }
+
+    async updateCount(dealID: number, player: Player, minimumBalance: number, smartcontract: SmartContract) {
+        try {
+            await db.transaction(async (tx) => {
+                const updatedCount = player.count++;
+                await tx.update(userDealsTable).set({
+                    counter: updatedCount
+                }).where(and(eq(userDealsTable.userAddress, player.address), eq(userDealsTable.dealID, dealID)));
+
+                if (updatedCount >= minimumBalance) {
+                    const txHash = await smartcontract.updateCount(dealID, player.address);
+                    await tx.update(userDealsTable).set({
+                        rewardSentTxHash: txHash
+                    }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, player.address)));
+
+                    // Update Worx
+                    console.log("Update to Worx not implemented yet");
+                }
+            });
+        } catch(err) {
+            console.error("Error updating count of player", err);
+            throw new Error("Error updating count");
         }
     }
 }

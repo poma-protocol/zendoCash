@@ -9,7 +9,8 @@ export const smartContractMock = {
     createDeal: jest.fn(),
     doesUserHaveBalance: jest.fn(),
     join: jest.fn(),
-    markDealEnded: jest.fn()
+    markDealEnded: jest.fn(),
+    updateCount: jest.fn()
 } as SmartContract
 
 export const dealsModelMock = {
@@ -31,5 +32,6 @@ export const dealsControllerMock = {
     join: jest.fn(),
     create: jest.fn(),
     markEnded: jest.fn(),
-    resetCount: jest.fn()
+    resetCount: jest.fn(),
+    updateCount: jest.fn()
 } as DealsController

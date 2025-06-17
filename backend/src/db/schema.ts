@@ -25,6 +25,7 @@ export const userDealsTable = pgTable("userDeals", {
     userAddress: text('address').notNull(),
     dealID: integer('dealID').notNull().references(() => dealsTable.id),
     counter: integer('counter').notNull(),
+    lastCountUpdateTime: timestamp("lastCountUpdateTime"),
     rewardSentTxHash: text('rewardSentTransactionHash')
 }, (table) => [
     primaryKey({columns: [table.userAddress, table.dealID]})

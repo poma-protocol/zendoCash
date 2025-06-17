@@ -71,4 +71,13 @@ export class SmartContract {
             throw new Error("Error marking deal as ended in smart contract");
         }
     }
+
+    async updateCount(dealID: number, address: string): Promise<string> {
+        try {
+            throw new Error("Not implemented");
+        } catch(err) {
+            console.error("Error updating count in smart contract", err);
+            throw new Error("Could not update count");
+        }
+    }
 }
