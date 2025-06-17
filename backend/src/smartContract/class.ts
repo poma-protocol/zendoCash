@@ -157,7 +157,27 @@ export class SmartContract {
 
     async updateCount(dealID: number, address: string): Promise<string> {
         try {
-            throw new Error("Not implemented");
+            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const account = await this.getAccount();
+            const block = await this.web3.eth.getBlock();
+
+            const transaction = {
+                from: account.address,
+                to: process.env.CONTRACT_ADDRESS,
+                data: contract.methods.rewardUser(
+                    BigInt(dealID),
+                    address
+                ).encodeABI(),
+                maxFeePerGas: block.baseFeePerGas! * 2n,
+                maxPriorityFeePerGas: 100000,
+            };
+            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+                transaction,
+                account.privateKey,
+            );
+            const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+
+            return receipt.transactionHash.toString();
         } catch (err) {
             console.error("Error updating count in smart contract", err);
             throw new Error("Could not update count");
