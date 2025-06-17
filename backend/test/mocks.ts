@@ -1,9 +1,12 @@
 import { Alchemy } from "alchemy-sdk";
 import { DealsModel } from "../src/model/deals.js";
 import { SmartContract } from "../src/smartContract/class.js";
-import { DealsController } from "../src/controller/deals.js";
+import { DealsController } from "../src/controller/deals.js"
+import Web3 from "web3";
 
 export const smartContractMock = {
+    web3: {} as Web3,
+    abi: {} as JSON,
     alchemy: {} as Alchemy,
     isValidAddress: jest.fn(),
     createDeal: jest.fn(),

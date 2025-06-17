@@ -31,6 +31,7 @@ export class DealsModel {
             await db.transaction(async (tx) => {
                 const insertedDeal = await tx.insert(dealsTable).values({
                     contract_address: args.contract_address,
+                    name: args.name,
                     coin_owner_address: args.coin_owner_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     miniumum_days_to_hold: args.minimum_days_hold,
@@ -46,10 +47,15 @@ export class DealsModel {
                 // Create deal in smarcontract
                 const txHash = await smartContract.createDeal({
                     id: dealID,
+                    name: args.name,
+                    maxParticipants: args.max_rewards_give_out,
+                    creatorAddress: args.coin_owner_address,
+                    numberDays: args.minimum_days_hold,
+                    startDate: args.start_date,
+                    endDate: args.end_date,
                     contract_address: args.contract_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     reward: args.reward,
-                    max_rewards: args.max_rewards_give_out
                 });
 
                 await tx.update(dealsTable).set({ creationTxHash: txHash }).where(eq(dealsTable.id, dealID));

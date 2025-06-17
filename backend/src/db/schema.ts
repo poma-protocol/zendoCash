@@ -4,6 +4,7 @@ import { primaryKey, check, pgTable, serial, text, real, integer, timestamp, boo
 export const dealsTable = pgTable("deals", {
     id: serial("id").primaryKey(),
     contract_address: text("contractAddress").notNull(),
+    name: text("name").notNull(),
     minimum_amount_to_hold: real("minimumAmountToHold").notNull(),
     miniumum_days_to_hold: integer("minimumDaysToHold").notNull(),
     reward: real("reward").notNull(),
