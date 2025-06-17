@@ -242,6 +242,17 @@ export class DealsModel {
             throw new Error("Error updating db and contract");
         }
     }
+
+    async markDealEnded(dealID: number) {
+        try {
+            await db.update(dealsTable).set({
+                done: true
+            }).where(eq(dealsTable.id, dealID));
+        } catch(err) {
+            console.error("Error marking deal as ended", err);
+            throw new Error("Error marking deal as ended in DB");
+        }
+    }
 }
 
 const dealModel = new DealsModel();

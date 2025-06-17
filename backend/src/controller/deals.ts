@@ -5,7 +5,7 @@ import { CreateDealsType, JoinSchemaType } from "../types";
 import { DealsModel } from "../model/deals";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface DealDetails {
     id: number,
@@ -40,6 +40,7 @@ export interface MainFunctionDeals {
     max_rewards: number,
     rewards_sent: number,
     minimum_days_hold: number,
+    endDate: Date,
     players: string[]
 }
 export class DealsController {
@@ -183,8 +184,9 @@ export class DealsController {
                 coinAddress: dealsTable.contract_address,
                 minimumBalance: dealsTable.minimum_amount_to_hold,
                 minDaysHold: dealsTable.miniumum_days_to_hold,
-                max_rewards: dealsTable.max_rewards
-            }).from(dealsTable).where(eq(dealsTable.done, false));
+                max_rewards: dealsTable.max_rewards,
+                endDate: dealsTable.endDate
+            }).from(dealsTable).where(and(eq(dealsTable.done, false), eq(dealsTable.activated, true)));
 
             const deals: MainFunctionDeals[] = [];
             for await (const deal of dealResults) {
@@ -209,6 +211,7 @@ export class DealsController {
                     rewards_sent: rewardsSent,
                     max_rewards: deal.max_rewards,
                     minimum_days_hold: deal.minDaysHold,
+                    endDate: deal.endDate,
                     players
                 });
             }
@@ -217,6 +220,16 @@ export class DealsController {
         } catch(err) {
             console.error("Error getting main function deals", err);
             throw new MyError(Errors.NOT_GET_MAIN_DEALS);
+        }
+    }
+
+    async markEnded(dealID: number, smartcontract: SmartContract, dealModel: DealsModel) {
+        try {
+            await smartcontract.markDealEnded(dealID);
+            await dealModel.markDealEnded(dealID);
+        } catch(err) {
+            console.error("Error marking deal as ended", err);
+            throw new Error("Error marking deal as ended");
         }
     }
 }

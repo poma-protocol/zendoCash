@@ -62,4 +62,13 @@ export class SmartContract {
             console.error("Error joining deal in smart contract");
         }
     }
+
+    async markDealEnded(dealID: number) {
+        try {
+            throw new Error("Not implemented");
+        } catch(err) {
+            console.error("Error marking deal as ended in smart contract", err);
+            throw new Error("Error marking deal as ended in smart contract");
+        }
+    }
 }
