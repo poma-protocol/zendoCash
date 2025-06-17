@@ -253,6 +253,17 @@ export class DealsModel {
             throw new Error("Error marking deal as ended in DB");
         }
     }
+
+    async resetCount(dealID: number, userAddress: string) {
+        try {
+            await db.update(userDealsTable).set({
+                counter: 0
+            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
+        } catch(err) {
+            console.error("Error reseting count for user in database", err);
+            throw new Error("Erorr resetting count in database");
+        }
+    }
 }
 
 const dealModel = new DealsModel();

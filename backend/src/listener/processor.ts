@@ -12,18 +12,23 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
         }
 
         // Else go to each of the players
+        for (const player of deal.players) {
+            // Check if player has required balance
+            const hasBalance = await smartContract.doesUserHaveBalance(player, deal.coin_address, deal.minimum_balance);
+            // If player doesn't have reset their counter and send to frontend
+            if (hasBalance === false) {
+                await dealController.resetCount(deal.deal_id, player, dealModel);
+                continue;
+            }
 
-        // Check if player has required balance
+            // Else check the last time the player's counter was updated
 
-        // If player doesn't have reset their counter and send to frontend
+            // If it was atleast a day ago update counter
 
-        // Else check the last time the player's counter was updated
+                // If counter is at minimum days send reward
 
-        // If it was atleast a day ago update counter
-
-            // If counter is at minimum days send reward
-
-        // Else do nothing
+            // Else do nothing
+        }
     } catch (err) {
         console.error("Error processing main deal", err);
     }

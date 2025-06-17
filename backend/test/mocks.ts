@@ -19,7 +19,8 @@ export const dealsModelMock = {
     markDealActivatedInDB: jest.fn(),
     hasUserJoinedDeal: jest.fn(),
     updateDBAndContractOnJoin: jest.fn(),
-    markDealEnded: jest.fn()
+    markDealEnded: jest.fn(),
+    resetCount: jest.fn()
 } as DealsModel
 
 export const dealsControllerMock = {
@@ -29,5 +30,6 @@ export const dealsControllerMock = {
     markAsActivated: jest.fn(),
     join: jest.fn(),
     create: jest.fn(),
-    markEnded: jest.fn()
+    markEnded: jest.fn(),
+    resetCount: jest.fn()
 } as DealsController

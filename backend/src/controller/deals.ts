@@ -232,6 +232,17 @@ export class DealsController {
             throw new Error("Error marking deal as ended");
         }
     }
+
+    async resetCount(dealID: number, userAddress: string, dealsModel: DealsModel) {
+        try {
+            await dealsModel.resetCount(dealID, userAddress);
+            // UPDATE WORX
+            console.log("Not yet implemented code for updating WORX site");
+        } catch(err) {
+            console.error("Error reseting count for user", err);
+            throw new Error("Error resetting count");
+        }
+    }
 }
 
 const dealsController = new DealsController();
