@@ -11,6 +11,7 @@ export interface DealDetails {
     id: number,
     contract_address: string,
     minimum_amount_to_hold: number,
+    minimum_days_to_hold: number,
     reward: number,
     max_rewards: number,
     coin_owner_address: string,
