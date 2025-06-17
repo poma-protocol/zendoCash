@@ -6,14 +6,14 @@ import Web3 from "web3";
 
 export const smartContractMock = {
     web3: {} as Web3,
-    abi: {} as JSON,
     alchemy: {} as Alchemy,
     isValidAddress: jest.fn(),
     createDeal: jest.fn(),
     doesUserHaveBalance: jest.fn(),
     join: jest.fn(),
     markDealEnded: jest.fn(),
-    updateCount: jest.fn()
+    updateCount: jest.fn(),
+    getAccount: jest.fn()
 } as SmartContract
 
 export const dealsModelMock = {

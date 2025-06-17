@@ -24,12 +24,12 @@ export class SmartContract {
     alchemy: Alchemy
     web3: Web3
 
-    constructor(alchemy: Alchemy, web3: Web3, abi: JSON) {
+    constructor(alchemy: Alchemy, web3: Web3) {
         this.alchemy = alchemy;
         this.web3 = web3;
     }
 
-    private async getAccount(): Promise<Web3Account> {
+    async getAccount(): Promise<Web3Account> {
         try {
             // const privateKey = await infisical.getSecret("PRIVATE_KEY", process.env.INFISICAL_ENVIRONMENT);
             const account = this.web3.eth.accounts.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
@@ -119,7 +119,27 @@ export class SmartContract {
 
     async join(dealID: number, address: string) {
         try {
-            throw new Error("Not implemented");
+            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const account = await this.getAccount();
+            const block = await this.web3.eth.getBlock();
+
+            const transaction = {
+                from: account.address,
+                to: process.env.CONTRACT_ADDRESS,
+                data: contract.methods.addParticipant(
+                    BigInt(dealID),
+                    address
+                ).encodeABI(),
+                maxFeePerGas: block.baseFeePerGas! * 2n,
+                maxPriorityFeePerGas: 100000,
+            };
+            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+                transaction,
+                account.privateKey,
+            );
+            const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+
+            return receipt.transactionHash.toString();
         } catch (err) {
             console.error("Error joining deal in smart contract");
         }
