@@ -239,8 +239,8 @@ export class DealsController {
 
     async markEnded(dealID: number, smartcontract: SmartContract, dealModel: DealsModel) {
         try {
-            await smartcontract.markDealEnded(dealID);
-            await dealModel.markDealEnded(dealID);
+            const txHash = await smartcontract.markDealEnded(dealID);
+            await dealModel.markDealEnded(dealID, txHash);
         } catch(err) {
             console.error("Error marking deal as ended", err);
             throw new Error("Error marking deal as ended");

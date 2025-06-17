@@ -253,10 +253,11 @@ export class DealsModel {
         }
     }
 
-    async markDealEnded(dealID: number) {
+    async markDealEnded(dealID: number, txHash: string) {
         try {
             await db.update(dealsTable).set({
-                done: true
+                done: true,
+                endDealTx: txHash
             }).where(eq(dealsTable.id, dealID));
         } catch(err) {
             console.error("Error marking deal as ended", err);

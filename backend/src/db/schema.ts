@@ -17,6 +17,7 @@ export const dealsTable = pgTable("deals", {
     activated: boolean("dealActivated").default(false).notNull(),
     creationDate: timestamp("creationDate").defaultNow().notNull(),
     activationDate: timestamp("activationDate"),
+    endDealTx: text("endDealTransactionHash"),
     done: boolean("done").default(false).notNull(),
 }, (table) => [
     check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
