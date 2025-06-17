@@ -5,6 +5,7 @@ today.setHours(0);
 
 export const createDealSchema = z.object({
     contract_address: z.string({message: "Contract address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Contract address must be a valid ethereum address"}),
+    name: z.string({message: "Name of deal must be a string"}),
     minimum_amount_hold: z.number({message: "Minimum amount to hold must be a number"}).gt(0, {message: "Minimum amount to hold must be greater than zero"}),
     minimum_days_hold: z.number({message: "Minimum days to hold must be a number"}).gt(0, {message: "Minimum days to hold must be greater than zero"}).int({message: "Minimum days to hold must be a whole number"}),
     reward: z.number({message: "Reward must be a number"}).gt(0, {message: "Reward must be greater than zero"}),

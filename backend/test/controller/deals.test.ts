@@ -230,8 +230,8 @@ describe("Deal Controller Tests", () => {
             try {
                 const hasBalance = await testDealController.join({...joinArgs, address: validAddress2}, smartContractMock, dealsModelMock);
                 expect(hasBalance).toBe(false);
-                expect(dealsModelMock.updateDBAndContract).toHaveBeenCalledTimes(1);
-                expect(dealsModelMock.updateDBAndContract).toHaveBeenCalledWith(createdDealID, validAddress2, 0, smartContractMock);
+                expect(dealsModelMock.updateDBAndContractOnJoin).toHaveBeenCalledTimes(1);
+                expect(dealsModelMock.updateDBAndContractOnJoin).toHaveBeenCalledWith(createdDealID, validAddress2, 0, smartContractMock);
             } catch(err) {
                 console.error("Unexpected error", err);
                 expect(false).toBe(true);
@@ -242,12 +242,12 @@ describe("Deal Controller Tests", () => {
             try {
                 const hasBalance = await testDealController.join(joinArgs, smartContractMock, dealsModelMock);
                 expect(hasBalance).toBe(true);
-                expect(dealsModelMock.updateDBAndContract).toHaveBeenCalledTimes(1);
-                expect(dealsModelMock.updateDBAndContract).toHaveBeenCalledWith(createdDealID, validAddress, 1, smartContractMock);
+                expect(dealsModelMock.updateDBAndContractOnJoin).toHaveBeenCalledTimes(1);
+                expect(dealsModelMock.updateDBAndContractOnJoin).toHaveBeenCalledWith(createdDealID, validAddress, 1, smartContractMock);
             } catch(err) {
                 console.error("Unexpected error", err);
                 expect(false).toBe(true);
             }
         });
-    })
+    });
 })

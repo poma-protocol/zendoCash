@@ -1,0 +1,1 @@
+ALTER TABLE "userDeals" ADD COLUMN "lastCountUpdateTime" timestamp;

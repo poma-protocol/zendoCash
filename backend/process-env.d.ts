@@ -3,8 +3,9 @@ declare global {
         interface ProcessEnv {
             PORT: number,
             DATABASE_URL: string,
-            ARBITRUM_RPC_URL: string,
-            ALCHEMY_KEY: string
+            RPC_URL: string,
+            ALCHEMY_KEY: string,
+            CONTRACT_ADDRESS: string
         }
     }
 }

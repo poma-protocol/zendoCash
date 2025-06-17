@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
@@ -10,6 +10,7 @@ interface RawDealDetails {
     id: number;
     contract_address: string;
     minimum_amount_to_hold: number;
+    minimum_days_to_hold: number;
     reward: number;
     max_rewards: number;
     coin_owner_address: string;
@@ -30,8 +31,10 @@ export class DealsModel {
             await db.transaction(async (tx) => {
                 const insertedDeal = await tx.insert(dealsTable).values({
                     contract_address: args.contract_address,
+                    name: args.name,
                     coin_owner_address: args.coin_owner_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
+                    miniumum_days_to_hold: args.minimum_days_hold,
                     reward: args.reward,
                     max_rewards: args.max_rewards_give_out,
                     start_date: args.start_date,
@@ -44,10 +47,15 @@ export class DealsModel {
                 // Create deal in smarcontract
                 const txHash = await smartContract.createDeal({
                     id: dealID,
+                    name: args.name,
+                    maxParticipants: args.max_rewards_give_out,
+                    creatorAddress: args.coin_owner_address,
+                    numberDays: args.minimum_days_hold,
+                    startDate: args.start_date,
+                    endDate: args.end_date,
                     contract_address: args.contract_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     reward: args.reward,
-                    max_rewards: args.max_rewards_give_out
                 });
 
                 await tx.update(dealsTable).set({ creationTxHash: txHash }).where(eq(dealsTable.id, dealID));
@@ -70,6 +78,7 @@ export class DealsModel {
                 id: dealsTable.id,
                 contract_address: dealsTable.contract_address,
                 minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                 reward: dealsTable.reward,
                 max_rewards: dealsTable.max_rewards,
                 coin_owner_address: dealsTable.coin_owner_address,
@@ -90,14 +99,14 @@ export class DealsModel {
             const d = deals[0];
             const players = await db.select({
                 address: userDealsTable.userAddress,
-                done: userDealsTable.done
+                rewardTx: userDealsTable.rewardSentTxHash
             }).from(userDealsTable)
                 .where(eq(userDealsTable.dealID, d.id));
 
             const totalPlayers = players.length;
             let rewardedPlayers = 0;
             for (const p of players) {
-                if (p.done === true) {
+                if (p.rewardTx !== null) {
                     rewardedPlayers++;
                 }
             }
@@ -120,6 +129,7 @@ export class DealsModel {
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
                     max_rewards: dealsTable.max_rewards,
                     coin_owner_address: dealsTable.coin_owner_address,
@@ -136,6 +146,7 @@ export class DealsModel {
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
                     max_rewards: dealsTable.max_rewards,
                     coin_owner_address: dealsTable.coin_owner_address,
@@ -146,7 +157,7 @@ export class DealsModel {
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                    done: userDealsTable.done
+                    done: sql<boolean>`IS NOT NULL ${userDealsTable.rewardSentTxHash}`
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress));
@@ -155,6 +166,7 @@ export class DealsModel {
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
                     max_rewards: dealsTable.max_rewards,
                     coin_owner_address: dealsTable.coin_owner_address,
@@ -172,14 +184,14 @@ export class DealsModel {
             deals.map(async (d) => {
                 const players = await db.select({
                     address: userDealsTable.userAddress,
-                    done: userDealsTable.done
+                    rewardTx: userDealsTable.rewardSentTxHash
                 }).from(userDealsTable)
                     .where(eq(userDealsTable.dealID, d.id));
 
                 const totalPlayers = players.length;
                 let rewardedPlayers = 0;
                 for (const p of players) {
-                    if (p.done === true) {
+                    if (p.rewardTx !== null) {
                         rewardedPlayers++;
                     }
                 }
@@ -220,21 +232,47 @@ export class DealsModel {
         }
     }
 
-    async updateDBAndContract(dealID: number, address: string, counter: number, smartContract: SmartContract) {
+    async updateDBAndContractOnJoin(dealID: number, address: string, counter: number, smartContract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
                 await tx.insert(userDealsTable).values({
                     userAddress: address,
                     dealID: dealID,
                     counter: counter,
-                    done: false,
                 });
 
-                await smartContract.join(dealID, address);
+                const txHash = await smartContract.join(dealID, address);
+                
+                await tx.update(userDealsTable).set({
+                    joinTxHash: txHash
+                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
             });
         } catch (err) {
             console.error("Error updating db and contract", err);
             throw new Error("Error updating db and contract");
+        }
+    }
+
+    async markDealEnded(dealID: number, txHash: string) {
+        try {
+            await db.update(dealsTable).set({
+                done: true,
+                endDealTx: txHash
+            }).where(eq(dealsTable.id, dealID));
+        } catch(err) {
+            console.error("Error marking deal as ended", err);
+            throw new Error("Error marking deal as ended in DB");
+        }
+    }
+
+    async resetCount(dealID: number, userAddress: string) {
+        try {
+            await db.update(userDealsTable).set({
+                counter: 0
+            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
+        } catch(err) {
+            console.error("Error reseting count for user in database", err);
+            throw new Error("Erorr resetting count in database");
         }
     }
 }

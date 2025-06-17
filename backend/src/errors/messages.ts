@@ -6,5 +6,6 @@ export enum Errors {
     DEAL_DOES_NOT_EXIST="Deal does not exist",
     INVALID_ADDRESS="Invalid address",
     ALREADY_JOINED="User has already joined the deal",
+    NOT_GET_MAIN_DEALS="Could not get deals for main function",
     INTERNAL_SERVER_ERROR="Internal server error"
 }
