@@ -3,6 +3,9 @@ import { MyError } from "../errors/type";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType, JoinSchemaType } from "../types";
 import { DealsModel } from "../model/deals";
+import db from "../db";
+import { dealsTable, userDealsTable } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 export interface DealDetails {
     id: number,
@@ -27,6 +30,16 @@ export interface DealDetails {
 export interface GetManyArgs {
     coinAddress?: string,
     playerAddress?: string
+}
+
+export interface MainFunctionDeals {
+    deal_id: number,
+    coin_address: string,
+    minimum_balance: number,
+    max_rewards: number,
+    rewards_sent: number,
+    minimum_days_hold: number,
+    players: string[]
 }
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
@@ -150,7 +163,7 @@ export class DealsController {
 
             const hasBalance = await smartContract.doesUserHaveBalance(args.address, deal.contract_address, deal.reward);
             const counter = hasBalance === true ? 1 : 0;
-            await dealModel.updateDBAndContract(args.deal_id, args.address, counter, smartContract);
+            await dealModel.updateDBAndContractOnJoin(args.deal_id, args.address, counter, smartContract);
             return hasBalance;
         } catch (err) {
             if (err instanceof MyError) {
@@ -159,6 +172,50 @@ export class DealsController {
 
             console.error("Error joining player to deal", err);
             throw new Error("Error joining player");
+        }
+    }
+
+    async mainFunctionDeals(): Promise<MainFunctionDeals[]> {
+        try {
+            const dealResults = await db.select({
+                id: dealsTable.id,
+                coinAddress: dealsTable.contract_address,
+                minimumBalance: dealsTable.minimum_amount_to_hold,
+                minDaysHold: dealsTable.miniumum_days_to_hold,
+                max_rewards: dealsTable.max_rewards
+            }).from(dealsTable).where(eq(dealsTable.done, false));
+
+            const deals: MainFunctionDeals[] = [];
+            for await (const deal of dealResults) {
+                const playersResults = await db.select({
+                    address: userDealsTable.userAddress,
+                    txHash: userDealsTable.rewardSentTxHash
+                }).from(userDealsTable).where(eq(userDealsTable.dealID, deal.id));
+
+                const participatingPlayers = playersResults.filter((p) => p.txHash === null);
+                const players = participatingPlayers.map((p) => p.address);
+                let rewardsSent = 0;
+                for (const p of playersResults) {
+                    if (p.txHash !== null) {
+                        rewardsSent++;
+                    }
+                } 
+
+                deals.push({
+                    deal_id: deal.id,
+                    coin_address: deal.coinAddress,
+                    minimum_balance: deal.minimumBalance,
+                    rewards_sent: rewardsSent,
+                    max_rewards: deal.max_rewards,
+                    minimum_days_hold: deal.minDaysHold,
+                    players
+                });
+            }
+
+            return deals;
+        } catch(err) {
+            console.error("Error getting main function deals", err);
+            throw new MyError(Errors.NOT_GET_MAIN_DEALS);
         }
     }
 }

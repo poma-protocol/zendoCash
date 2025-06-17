@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
-import { check, pgTable, serial, text, real, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { primaryKey, check, pgTable, serial, text, real, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const dealsTable = pgTable("deals", {
     id: serial("id").primaryKey(),
     contract_address: text("contractAddress").notNull(),
     minimum_amount_to_hold: real("minimumAmountToHold").notNull(),
+    miniumum_days_to_hold: integer("minimumDaysToHold").notNull(),
     reward: real("reward").notNull(),
     max_rewards: integer("maxRewards").notNull(),
     coin_owner_address: text("coinOwnerAddress").notNull(),
@@ -15,6 +16,7 @@ export const dealsTable = pgTable("deals", {
     activated: boolean("dealActivated").default(false).notNull(),
     creationDate: timestamp("creationDate").defaultNow().notNull(),
     activationDate: timestamp("activationDate"),
+    done: boolean("done").default(false).notNull(),
 }, (table) => [
     check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
 ]);
@@ -23,5 +25,7 @@ export const userDealsTable = pgTable("userDeals", {
     userAddress: text('address').notNull(),
     dealID: integer('dealID').notNull().references(() => dealsTable.id),
     counter: integer('counter').notNull(),
-    done: boolean('done').notNull()
-});
+    rewardSentTxHash: text('rewardSentTransactionHash')
+}, (table) => [
+    primaryKey({columns: [table.userAddress, table.dealID]})
+]);
