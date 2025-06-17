@@ -100,7 +100,6 @@ contract Zendo {
             deal.currentParticipantCount < deal.maxParticipants,
             "Max participants reached"
         );
-        
 
         Participant storage p = dealParticipants[_id][participant];
         require(!p.isRegistered, "Participant already registered");
@@ -134,6 +133,27 @@ contract Zendo {
         p.isRewarded = true;
     }
 
+    function enddeal(uint256 _id) external {
+        Deal storage deal = deals[_id];
+        require(deal.id == _id, "Deal does not exist");
+        require(deal.isActive, "Deal is not active");
+
+        deal.isActive = false;
+
+        // Calculate remaining rewards (undistributed funds)
+        uint256 rewardPerParticipant = deal.rewards / deal.maxParticipants;
+        uint256 totalDistributed = rewardPerParticipant *
+            deal.currentParticipantCount;
+        uint256 remaining = deal.rewards - totalDistributed;
+
+        // Transfer remaining tokens back to the creator
+        if (remaining > 0) {
+            IERC20 token = IERC20(deal.tokenAddress);
+            bool success = token.transfer(deal.creator, remaining);
+            require(success, "Refund transfer failed");
+        }
+    }
+
     function dealExists(uint256 id) public view returns (uint256) {
         return deals[id].id == id ? 1 : 0;
     }
@@ -144,6 +164,7 @@ contract Zendo {
     ) public view returns (address) {
         return dealParticipants[_id][participant].participantAddress;
     }
+
     function isDealActive(uint256 _id) public view returns (bool) {
         return deals[_id].isActive;
     }
