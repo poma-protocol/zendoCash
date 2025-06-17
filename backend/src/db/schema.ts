@@ -26,6 +26,7 @@ export const userDealsTable = pgTable("userDeals", {
     userAddress: text('address').notNull(),
     dealID: integer('dealID').notNull().references(() => dealsTable.id),
     counter: integer('counter').notNull(),
+    joinTxHash: text("joinTransactionHash"),
     lastCountUpdateTime: timestamp("lastCountUpdateTime"),
     rewardSentTxHash: text('rewardSentTransactionHash')
 }, (table) => [

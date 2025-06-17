@@ -117,7 +117,7 @@ export class SmartContract {
         }
     }
 
-    async join(dealID: number, address: string) {
+    async join(dealID: number, address: string): Promise<string> {
         try {
             const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
@@ -142,6 +142,7 @@ export class SmartContract {
             return receipt.transactionHash.toString();
         } catch (err) {
             console.error("Error joining deal in smart contract");
+            throw new Error("Error joining user to deal");
         }
     }
 

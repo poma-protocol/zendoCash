@@ -241,7 +241,11 @@ export class DealsModel {
                     counter: counter,
                 });
 
-                await smartContract.join(dealID, address);
+                const txHash = await smartContract.join(dealID, address);
+                
+                await tx.update(userDealsTable).set({
+                    joinTxHash: txHash
+                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
             });
         } catch (err) {
             console.error("Error updating db and contract", err);
