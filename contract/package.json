@@ -6,6 +6,11 @@
     "ethers": "^6.14.4",
     "hardhat": "^2.24.3"
   },
+  "scripts": {
+    "node": "npx hardhat node",
+    "compile": "npx hardhat compile",
+    "deploy": ""
+  },
   "dependencies": {
     "@openzeppelin/contracts": "^5.3.0"
   }
