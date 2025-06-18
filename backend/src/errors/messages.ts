@@ -7,5 +7,6 @@ export enum Errors {
     INVALID_ADDRESS="Invalid address",
     ALREADY_JOINED="User has already joined the deal",
     NOT_GET_MAIN_DEALS="Could not get deals for main function",
+    INVALID_DATE="Start and end date must be at least today",
     INTERNAL_SERVER_ERROR="Internal server error"
 }

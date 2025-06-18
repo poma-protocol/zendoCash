@@ -2,8 +2,14 @@ import Express from "express";
 import "dotenv/config";
 import { MyError } from "./errors/type";
 import { Errors } from "./errors/messages";
+import cors from "cors";
+
+import dealsRouter from "./routes/deal";
 
 const app = Express();
+app.use("/", cors());
+app.use("/", Express.json());
+app.use("/deals", dealsRouter);
 
 const PORT = process.env.PORT;
 if (!PORT) {

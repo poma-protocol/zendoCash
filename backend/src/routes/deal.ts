@@ -76,7 +76,7 @@ router.get("/player/:address", async (req , res) => {
 router.post("/activate/:id", async(req, res) => {
     try {
         const id = Number.parseInt(req.params.id);
-        await dealsController.markAsActivated(id, dealModel);
+        await dealsController.markAsActivated(id, dealModel, smartContract);
         res.status(201).json({message: "Deal marked as activated"})
     } catch(err) {
         if (err instanceof MyError) {

@@ -37,8 +37,8 @@ export class DealsModel {
                     miniumum_days_to_hold: args.minimum_days_hold,
                     reward: args.reward,
                     max_rewards: args.max_rewards_give_out,
-                    start_date: args.start_date,
-                    endDate: args.end_date,
+                    start_date: new Date(Date.parse(args.start_date)),
+                    endDate: new Date(Date.parse(args.end_date)),
                     chain: ARBITRUM_CHAIN
                 }).returning({ id: dealsTable.id });
 
@@ -51,8 +51,8 @@ export class DealsModel {
                     maxParticipants: args.max_rewards_give_out,
                     creatorAddress: args.coin_owner_address,
                     numberDays: args.minimum_days_hold,
-                    startDate: args.start_date,
-                    endDate: args.end_date,
+                    startDate: new Date(Date.parse(args.start_date)),
+                    endDate: new Date(Date.parse(args.end_date)),
                     contract_address: args.contract_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     reward: args.reward,
@@ -223,7 +223,9 @@ export class DealsModel {
         try {
             const results = await db.select({
                 deal: userDealsTable.dealID
-            }).from(dealsTable).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+            }).from(dealsTable)
+            .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
+            .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
 
             return results.length > 0;
         } catch (err) {

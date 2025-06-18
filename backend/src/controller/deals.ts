@@ -52,6 +52,16 @@ export interface MainFunctionDeals {
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
         try {
+            const today = new Date()
+            today.setHours(0);
+
+            const endDate = new Date(Date.parse(args.end_date));
+            const startDate = new Date(Date.parse(args.start_date));
+
+            if (endDate < today || startDate < today) {
+                throw new MyError(Errors.INVALID_DATE);
+            }
+
             // Check if coin owner address and contract address exist
             const validCoinOwner = smartContract.isValidAddress(args.coin_owner_address);
             if (validCoinOwner === false) {
@@ -65,9 +75,9 @@ export class DealsController {
             }
 
             const minimumEndDate = new Date(args.start_date);
-            minimumEndDate.setDate(args.start_date.getDate() + 1);
+            minimumEndDate.setDate(startDate.getDate() + 1);
 
-            if (args.end_date < minimumEndDate) {
+            if (endDate < minimumEndDate) {
                 throw new MyError(Errors.INVALID_END_DATE);
             }
 
@@ -132,7 +142,7 @@ export class DealsController {
         }
     }
 
-    async markAsActivated(dealID: number, dealsModel: DealsModel) {
+    async markAsActivated(dealID: number, dealsModel: DealsModel, smartcontract: SmartContract) {
         try {
             const deal = await dealsModel.get(dealID);
             if (deal === null) {
@@ -140,6 +150,7 @@ export class DealsController {
             }
 
             // Update deal in DB
+            await smartcontract.activate(dealID);    
             await dealsModel.markDealActivatedInDB(dealID);
         } catch (err) {
             if (err instanceof MyError) {
@@ -258,7 +269,7 @@ export class DealsController {
         }
     }
 
-    async updateCount(dealID: number, player: Player, minimumBalance: number, smartcontract: SmartContract) {
+    async updateCount(dealID: number, player: Player, minumumDaysHold: number, smartcontract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
                 const updatedCount = player.count++;
@@ -266,8 +277,9 @@ export class DealsController {
                     counter: updatedCount
                 }).where(and(eq(userDealsTable.userAddress, player.address), eq(userDealsTable.dealID, dealID)));
 
-                if (updatedCount >= minimumBalance) {
+                if (updatedCount >= minumumDaysHold) {
                     const txHash = await smartcontract.updateCount(dealID, player.address);
+                    console.log("Transaction hash", tx);
                     await tx.update(userDealsTable).set({
                         rewardSentTxHash: txHash
                     }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, player.address)));

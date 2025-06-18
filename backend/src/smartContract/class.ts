@@ -32,7 +32,7 @@ export class SmartContract {
     async getAccount(): Promise<Web3Account> {
         try {
             // const privateKey = await infisical.getSecret("PRIVATE_KEY", process.env.INFISICAL_ENVIRONMENT);
-            const account = this.web3.eth.accounts.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+            const account = this.web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
             return account;
         } catch (err) {
             console.log("Error getting account", err);
@@ -53,7 +53,7 @@ export class SmartContract {
         try {
             const metadata = await this.alchemy.core.getTokenMetadata(args.contract_address);
             if (metadata.decimals) {
-                const processedReward = BigInt(args.reward * Math.pow(10, metadata.decimals));
+                const processedReward = BigInt((args.maxParticipants * args.reward) * Math.pow(10, metadata.decimals));
                 const goal = BigInt(args.minimum_amount_to_hold * Math.pow(10, metadata.decimals));
 
                 const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
@@ -117,6 +117,32 @@ export class SmartContract {
         }
     }
 
+    async activate(dealID: number) {
+        try {
+            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const account = await this.getAccount();
+            const block = await this.web3.eth.getBlock();
+
+            const transaction = {
+                from: account.address,
+                to: process.env.CONTRACT_ADDRESS,
+                data: contract.methods.activateDeal(
+                    BigInt(dealID),
+                ).encodeABI(),
+                maxFeePerGas: block.baseFeePerGas! * 2n,
+                maxPriorityFeePerGas: 100000,
+            };
+            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+                transaction,
+                account.privateKey,
+            );
+            await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+        } catch (err) {
+            console.error("Error activating deal", err);
+            throw new Error("Error activating deal");
+        }
+    }
+
     async join(dealID: number, address: string): Promise<string> {
         try {
             const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
@@ -141,7 +167,7 @@ export class SmartContract {
 
             return receipt.transactionHash.toString();
         } catch (err) {
-            console.error("Error joining deal in smart contract");
+            console.error("Error joining deal in smart contract", err);
             throw new Error("Error joining user to deal");
         }
     }
@@ -176,6 +202,7 @@ export class SmartContract {
 
     async updateCount(dealID: number, address: string): Promise<string> {
         try {
+            console.log(`Updating count for deal ${dealID} for user ${address}`);
             const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
             const block = await this.web3.eth.getBlock();

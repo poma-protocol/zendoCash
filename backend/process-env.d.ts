@@ -5,7 +5,8 @@ declare global {
             DATABASE_URL: string,
             RPC_URL: string,
             ALCHEMY_KEY: string,
-            CONTRACT_ADDRESS: string
+            CONTRACT_ADDRESS: string,
+            PRIVATE_KEY: string,
         }
     }
 }
