@@ -279,7 +279,7 @@ export class DealsController {
 
                 if (updatedCount >= minumumDaysHold) {
                     const txHash = await smartcontract.updateCount(dealID, player.address);
-                    console.log("Transaction hash", tx);
+                    console.log("Transaction hash", txHash);
                     await tx.update(userDealsTable).set({
                         rewardSentTxHash: txHash
                     }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, player.address)));
