@@ -155,7 +155,7 @@ export class SmartContract {
             const transaction = {
                 from: account.address,
                 to: process.env.CONTRACT_ADDRESS,
-                data: contract.methods.endDeal(
+                data: contract.methods.enddeal(
                     BigInt(dealID),
                 ).encodeABI(),
                 maxFeePerGas: block.baseFeePerGas! * 2n,
