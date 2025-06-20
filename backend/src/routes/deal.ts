@@ -48,9 +48,14 @@ router.get("/coin/:coin", async (req, res) => {
 
 router.get("/all", async (req, res) => {
     try {
-        const deals = await dealModel.getMany({});
+        const deals = await dealsController.getMany({}, dealModel, smartContract);
         res.json(deals);
     } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
+        
         console.log("Error getting deals", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -68,6 +73,10 @@ router.get("/player/:address", async (req, res) => {
             res.status(400).json({ message: error });
         }
     } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
         console.error("Error getting deals that a player has joined in", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
