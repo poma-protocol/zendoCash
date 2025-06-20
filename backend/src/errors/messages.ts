@@ -9,5 +9,6 @@ export enum Errors {
     NOT_GET_MAIN_DEALS="Could not get deals for main function",
     INVALID_DATE="Start and end date must be at least today",
     INVALID_TRANSACTION_HASH="Transaction needs to have been made after the deal has been created and have the correct reward amount sent to the correct contract address",
+    TRANSACTION_USED_BEFORE="Activation transaction has been used before",
     INTERNAL_SERVER_ERROR="Internal server error"
 }

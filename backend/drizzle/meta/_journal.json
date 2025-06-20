@@ -64,6 +64,13 @@
       "when": 1750431047217,
       "tag": "0008_married_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1750438878708,
+      "tag": "0009_gifted_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

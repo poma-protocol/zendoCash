@@ -19,7 +19,21 @@ export type CreateDealsType = z.infer<typeof createDealSchema>;
 export const joinSchema = z.object({
     address: z.string({message: "Address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Must be a valid ethereum address"}),
     deal_id: z.number({message: "Invalid deal"}),
-    transaction_hash: z.string({message: "Transaction hash must be a string"}).regex(/^(0x)?[0-9a-fA-F]{64}$/, {message: "Must be a valid ethereum transaction hash"}),
 });
 
+export const activateSchema = z.object({
+    dealID: z.number({message: "Invalid deal"}),
+    transaction_hash: z.string({message: "Transaction hash must be a string"}).regex(/^(0x)?[0-9a-fA-F]{64}$/, {message: "Must be a valid ethereum transaction hash"}),
+})
+
 export type JoinSchemaType = z.infer<typeof joinSchema>;
+
+export const decodedTransactionSchema = z.object({
+    jsonrpc: z.string().optional(),
+    id: z.string().optional(),
+    result: z.object({
+        from: z.string(),
+        input: z.string(),
+        to: z.string()
+    })
+});

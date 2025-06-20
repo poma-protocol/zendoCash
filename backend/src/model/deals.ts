@@ -207,11 +207,12 @@ export class DealsModel {
         }
     }
 
-    async markDealActivatedInDB(dealID: number) {
+    async markDealActivatedInDB(dealID: number, txn: string) {
         try {
             await db.update(dealsTable).set({
                 activated: true,
-                activationDate: new Date()
+                activationDate: new Date(),
+                activationTxHash: txn,
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as activated in DB", err);
@@ -234,13 +235,13 @@ export class DealsModel {
         }
     }
 
-    async updateDBAndContractOnJoin(dealID: number, address: string, counter: number, smartContract: SmartContract) {
+    async updateDBAndContractOnJoin(dealID: number, address: string, smartContract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
                 await tx.insert(userDealsTable).values({
                     userAddress: address,
                     dealID: dealID,
-                    counter: counter,
+                    counter: 0,
                 });
 
                 const txHash = await smartContract.join(dealID, address);
@@ -275,6 +276,20 @@ export class DealsModel {
         } catch(err) {
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
+        }
+    }
+
+    async hasActivationTransactionBeenUsed(txHash: string): Promise<boolean> {
+        try {
+            const results = await db.select({
+                id: dealsTable.id
+            }).from(dealsTable)
+            .where(eq(dealsTable.activationTxHash, txHash));
+
+            return results.length !== 0;
+        } catch(err) {
+            console.error("Error checking if activation transaction has been used before", err);
+            throw new Error("Error checking if activation transaction hash has been used");
         }
     }
 }

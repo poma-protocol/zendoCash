@@ -142,16 +142,26 @@ export class DealsController {
         }
     }
 
-    async markAsActivated(dealID: number, dealsModel: DealsModel, smartcontract: SmartContract) {
+    async markAsActivated(dealID: number, txHash: string, dealsModel: DealsModel, smartcontract: SmartContract) {
         try {
             const deal = await dealsModel.get(dealID);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
 
+            const hasTransactionBeenUsed = await dealsModel.hasActivationTransactionBeenUsed(txHash);
+            if (hasTransactionBeenUsed === true) {
+                throw new MyError(Errors.TRANSACTION_USED_BEFORE);
+            }
+
+            const isTransactionValid = await smartcontract.verifyActivateTransaction(deal, txHash);
+            if (!isTransactionValid) {
+                throw new MyError(Errors.INVALID_TRANSACTION_HASH);
+            }
+
             // Update deal in DB
             await smartcontract.activate(dealID);    
-            await dealsModel.markDealActivatedInDB(dealID);
+            await dealsModel.markDealActivatedInDB(dealID, txHash);
         } catch (err) {
             if (err instanceof MyError) {
                 throw err;
@@ -181,8 +191,7 @@ export class DealsController {
             }
 
             const hasBalance = await smartContract.doesUserHaveBalance(args.address, deal.contract_address, deal.reward);
-            const counter = hasBalance === true ? 1 : 0;
-            await dealModel.updateDBAndContractOnJoin(args.deal_id, args.address, counter, smartContract);
+            await dealModel.updateDBAndContractOnJoin(args.deal_id, args.address, smartContract);
             return hasBalance;
         } catch (err) {
             if (err instanceof MyError) {
@@ -211,10 +220,19 @@ export class DealsController {
                     address: userDealsTable.userAddress,
                     lastCountUpdateTime: userDealsTable.lastCountUpdateTime,
                     counter: userDealsTable.counter,
-                    txHash: userDealsTable.rewardSentTxHash
+                    txHash: userDealsTable.rewardSentTxHash,
+                    joinTime: userDealsTable.joinTime
                 }).from(userDealsTable).where(eq(userDealsTable.dealID, deal.id));
 
-                const participatingPlayers = playersResults.filter((p) => p.txHash === null);
+                const participatingPlayers = playersResults.filter((p) => {
+                    const oneDayAfterJoining = new Date(p.joinTime);
+                    oneDayAfterJoining.setDate(p.joinTime.getDate() + 1);
+                    const today = new Date();
+                
+                    if (oneDayAfterJoining < today && p.txHash !== null) {
+                        return p;
+                    }
+                });
                 const players: Player[] = participatingPlayers.map((p) => {
                     return {
                         address: p.address,
