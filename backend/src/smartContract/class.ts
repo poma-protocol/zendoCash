@@ -4,6 +4,9 @@ import { isAddress } from "web3-validator";
 import Web3, { Web3Account } from "web3";
 import "dotenv/config";
 import ABI from "../../abi.json";
+import COINABI from "../../coin.json";
+import { DealDetails } from "../controller/deals";
+import { decodedTransactionSchema } from "../types";
 const abi = ABI.abi;
 
 
@@ -227,6 +230,70 @@ export class SmartContract {
         } catch (err) {
             console.error("Error updating count in smart contract", err);
             throw new Error("Could not update count");
+        }
+    }
+
+    async verifyActivateTransaction(deal: DealDetails, txHash: string): Promise<boolean> {
+        try {
+            if(!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
+                throw new Error("Set RPC_URL and CONTRACT_ADDRESS in env file");
+            }
+
+            const body = {
+                jsonrpc: "2.0",
+                id: "254",
+                method: "eth_getTransactionByHash",
+                params: [
+                    txHash
+                ]
+            };
+            const result = await fetch(process.env.RPC_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(body)
+            });
+            
+            if (!result.ok) {
+                throw new Error("Could not get details of transaction");
+            }
+            const resBody = await result.json();
+            
+            const parsed = decodedTransactionSchema.safeParse(resBody);
+            if (parsed.success) {
+                const transaction = parsed.data.result;
+                if (transaction.from.toLowerCase() !== deal.coin_owner_address.toLowerCase()) {
+                    return false;
+                }
+
+                if (transaction.to.toLowerCase() !== deal.contract_address.toLowerCase()) {
+                    return false;
+                }
+
+                const coinContract = new this.web3.eth.Contract(COINABI, deal.contract_address);
+                const decodedTransaction = coinContract.decodeMethodData(transaction.input);
+                if (decodedTransaction.__method__.includes("transfer(address,uint256)")) {
+                    const receivingAccount = decodedTransaction['dst'] as string;
+                    const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
+                    const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
+                    if (metadata.decimals) {
+                        const expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                        return expectedAmount >= sentAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
+                    } else {
+                        throw new Error("Error getting decimals of coin");
+                    }
+                } else {
+                    return false;
+                }
+            } else {
+                console.log("Error parsing result data");
+                console.log(parsed.error);
+            }
+            return false;
+        } catch (err) {
+            console.error("Error verifying transaction", err);
+            throw new Error("Error verifying transaction");
         }
     }
 }
