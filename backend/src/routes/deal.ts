@@ -129,6 +129,10 @@ router.post("/join", async (req, res) => {
             res.status(400).json({ message: error });
         }
     } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
         console.error("Error joining deal at endpoint", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
