@@ -15,6 +15,7 @@ export const dealsTable = pgTable("deals", {
     creationTxHash: text("creationTransactionHash"),
     chain: text("chain").notNull(),
     activated: boolean("dealActivated").default(false).notNull(),
+    activationTxHash: text("activationTransactionHash"),
     creationDate: timestamp("creationDate").defaultNow().notNull(),
     activationDate: timestamp("activationDate"),
     endDealTx: text("endDealTransactionHash"),
@@ -25,9 +26,10 @@ export const dealsTable = pgTable("deals", {
 
 export const userDealsTable = pgTable("userDeals", {
     userAddress: text('address').notNull(),
-    dealID: integer('dealID').notNull().references(() => dealsTable.id),
+    dealID: integer('dealID').notNull().references(() => dealsTable.id, {onDelete: 'cascade'}),
     counter: integer('counter').notNull(),
     joinTxHash: text("joinTransactionHash"),
+    joinTime: timestamp("joinTime").defaultNow().notNull(),
     lastCountUpdateTime: timestamp("lastCountUpdateTime"),
     rewardSentTxHash: text('rewardSentTransactionHash')
 }, (table) => [
