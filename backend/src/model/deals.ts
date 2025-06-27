@@ -19,6 +19,7 @@ interface RawDealDetails {
     creationTxHash: string | null;
     chain: string;
     activated: boolean;
+    description: string | null;
     creationDate: Date;
     activationDate: Date | null;
 }
@@ -132,6 +133,7 @@ export class DealsModel {
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
+                    description: dealsTable.description,
                     max_rewards: dealsTable.max_rewards,
                     coin_owner_address: dealsTable.coin_owner_address,
                     start_date: dealsTable.start_date,
@@ -146,6 +148,7 @@ export class DealsModel {
                 deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
@@ -166,6 +169,7 @@ export class DealsModel {
                 deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
