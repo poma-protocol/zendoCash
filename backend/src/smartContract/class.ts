@@ -7,6 +7,7 @@ import ABI from "../../abi.json";
 import COINABI from "../../coin.json";
 import { DealDetails } from "../controller/deals";
 import { decodedTransactionSchema } from "../types";
+import { Errors } from "../errors/messages";
 const abi = ABI.abi;
 
 
@@ -21,6 +22,11 @@ interface CreateDealsInSmartContract {
     contract_address: string,
     minimum_amount_to_hold: number,
     reward: number
+}
+
+interface TokenDetails {
+    name: string,
+    symbol: string
 }
 
 export class SmartContract {
@@ -40,6 +46,38 @@ export class SmartContract {
         } catch (err) {
             console.log("Error getting account", err);
             throw new MyError("Error getting account");
+        }
+    }
+
+    async getTokenDetails(address: string): Promise<TokenDetails | null> {
+        try {
+            const isValid = this.isValidAddress(address);
+            if (isValid === false) {
+                throw new MyError(Errors.INVALID_ADDRESS);
+            }
+
+            const metadata = await this.alchemy.core.getTokenMetadata(address);
+            if (metadata.name && metadata.symbol) {
+                return {
+                    name: metadata.name,
+                    symbol: metadata.symbol
+                }
+            } else {
+                return null;
+            }
+        } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+
+            if (err instanceof Error) {
+                if (err.message.includes("expected a valid token contract address")) {
+                    throw new MyError(Errors.COIN_NOT_EXIST);
+                }
+            }
+
+            console.error("Error getting token details", err);
+            throw new Error("Error getting token details");
         }
     }
 
@@ -279,7 +317,7 @@ export class SmartContract {
                     const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
                     if (metadata.decimals) {
                         const expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
-                        return expectedAmount >= sentAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
+                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                     } else {
                         throw new Error("Error getting decimals of coin");
                     }
