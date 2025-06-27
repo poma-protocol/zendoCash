@@ -242,7 +242,7 @@ describe("Deal Controller Tests", () => {
             try {
                 await testDealController.markAsActivated(createdDealID, validTransactionHash, dealsModelMock, smartContractMock);
                 expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledTimes(1)
-                expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledWith(createdDealID);
+                expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledWith(createdDealID, validTransactionHash);
             } catch (err) {
                 console.log("Unexpected error", err);
                 expect(false).toBe(true);
