@@ -53,7 +53,7 @@ export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
         try {
             const today = new Date()
-            today.setHours(0);
+            today.setHours(0, 0, 0, 0);
 
             const endDate = new Date(Date.parse(args.end_date));
             const startDate = new Date(Date.parse(args.start_date));
