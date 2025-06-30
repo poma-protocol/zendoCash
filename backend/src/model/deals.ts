@@ -1,10 +1,11 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
+import smartContract from "../smartContract";
 
 interface RawDealDetails {
     id: number;
@@ -178,6 +179,8 @@ export class DealsModel {
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress));
             } else if (args.featured === true) {
+                const today = new Date();
+
                 deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
@@ -194,9 +197,8 @@ export class DealsModel {
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                    done: sql<boolean>`IS NOT NULL ${userDealsTable.rewardSentTxHash}`
                 }).from(dealsTable)
-                    .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
+                    .where(and(gt(dealsTable.endDate, today), eq(dealsTable.activated, true)))
                     .orderBy(desc(dealsTable.id))
                     .limit(3);
             } else {
@@ -220,12 +222,14 @@ export class DealsModel {
             }
 
             const toReturn: DealDetails[] = [];
-            deals.map(async (d) => {
+
+            for await (const d of deals) {
                 const players = await db.select({
                     address: userDealsTable.userAddress,
                     rewardTx: userDealsTable.rewardSentTxHash
                 }).from(userDealsTable)
                     .where(eq(userDealsTable.dealID, d.id));
+
 
                 const totalPlayers = players.length;
                 let rewardedPlayers = 0;
@@ -237,20 +241,20 @@ export class DealsModel {
                 const playerAddresses = players.map((d) => d.address);
 
                 const tokenDetails = await smartcontract.getTokenDetails(d.contract_address);
-                if(tokenDetails === null) {
-                    return;
+                if (tokenDetails === null) {
+                    continue;
                 }
 
-                toReturn.push({ 
-                    ...d, 
-                    total_players: totalPlayers, 
-                    rewarded_players: rewardedPlayers, 
+                toReturn.push({
+                    ...d,
+                    total_players: totalPlayers,
+                    rewarded_players: rewardedPlayers,
                     players: playerAddresses,
                     tokenLogo: tokenDetails.logoURL,
                     tokenName: tokenDetails.name,
                     tokenSymbol: tokenDetails.symbol
                 });
-            });
+            }
 
             return toReturn;
         } catch (err) {
