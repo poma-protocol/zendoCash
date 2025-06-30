@@ -11,7 +11,7 @@ const router: Router = Router();
 router.get("/id/:id", async (req, res) => {
     try {
         const dealID = Number.parseInt(req.params.id);
-        const deal = await dealsController.get(dealID, dealModel);
+        const deal = await dealsController.get(dealID, dealModel, smartContract);
         res.json(deal);
     } catch (err) {
         if (err instanceof MyError) {
@@ -81,6 +81,20 @@ router.get("/player/:address", async (req, res) => {
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 });
+
+router.get("/featured", async (req , res) => {
+    try {
+        const deals = await dealsController.getMany({featured: true}, dealModel, smartContract);
+        res.json(deals);
+    } catch(err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
+        console.error("Error getting deals that a player has joined in", err);
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
+    }
+})
 
 router.post("/activate", async (req, res) => {
     try {

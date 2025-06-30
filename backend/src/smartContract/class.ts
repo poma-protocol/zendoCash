@@ -26,7 +26,9 @@ interface CreateDealsInSmartContract {
 
 interface TokenDetails {
     name: string,
-    symbol: string
+    symbol: string,
+    decimals: number,
+    logoURL: string | null
 }
 
 export class SmartContract {
@@ -57,10 +59,12 @@ export class SmartContract {
             }
 
             const metadata = await this.alchemy.core.getTokenMetadata(address);
-            if (metadata.name && metadata.symbol) {
+            if (metadata.name && metadata.symbol && metadata.decimals) {
                 return {
                     name: metadata.name,
-                    symbol: metadata.symbol
+                    symbol: metadata.symbol,
+                    decimals: metadata.decimals,
+                    logoURL: metadata.logo
                 }
             } else {
                 return null;

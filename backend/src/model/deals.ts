@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
@@ -74,7 +74,7 @@ export class DealsModel {
         }
     }
 
-    async get(id: number): Promise<DealDetails | null> {
+    async get(id: number, smartcontract: SmartContract): Promise<DealDetails | null> {
         try {
             const deals = await db.select({
                 id: dealsTable.id,
@@ -113,8 +113,20 @@ export class DealsModel {
                 }
             }
             const playerAddresses = players.map((d) => d.address);
+            const tokenDetails = await smartcontract.getTokenDetails(deal.contract_address);
+            if (!tokenDetails) {
+                return null;
+            }
 
-            const toReturn = { ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses };
+            const toReturn: DealDetails = {
+                ...d,
+                total_players: totalPlayers,
+                rewarded_players: rewardedPlayers,
+                players: playerAddresses,
+                tokenName: tokenDetails.name,
+                tokenSymbol: tokenDetails.symbol,
+                tokenLogo: tokenDetails.logoURL,
+            };
             return toReturn;
         } catch (err) {
             console.error("Error getting deals from database", err);
@@ -122,7 +134,7 @@ export class DealsModel {
         }
     }
 
-    async getMany(args: GetManyArgs): Promise<DealDetails[]> {
+    async getMany(args: GetManyArgs, smartcontract: SmartContract): Promise<DealDetails[]> {
         try {
             let deals: RawDealDetails[] = [];
 
@@ -165,6 +177,28 @@ export class DealsModel {
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress));
+            } else if (args.featured === true) {
+                deals = await db.select({
+                    id: dealsTable.id,
+                    contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
+                    minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
+                    reward: dealsTable.reward,
+                    max_rewards: dealsTable.max_rewards,
+                    coin_owner_address: dealsTable.coin_owner_address,
+                    start_date: dealsTable.start_date,
+                    endDate: dealsTable.endDate,
+                    creationTxHash: dealsTable.creationTxHash,
+                    chain: dealsTable.chain,
+                    activated: dealsTable.activated,
+                    creationDate: dealsTable.creationDate,
+                    activationDate: dealsTable.activationDate,
+                    done: sql<boolean>`IS NOT NULL ${userDealsTable.rewardSentTxHash}`
+                }).from(dealsTable)
+                    .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
+                    .orderBy(desc(dealsTable.id))
+                    .limit(3);
             } else {
                 deals = await db.select({
                     id: dealsTable.id,
@@ -202,7 +236,20 @@ export class DealsModel {
                 }
                 const playerAddresses = players.map((d) => d.address);
 
-                toReturn.push({ ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses });
+                const tokenDetails = await smartcontract.getTokenDetails(d.contract_address);
+                if(tokenDetails === null) {
+                    return;
+                }
+
+                toReturn.push({ 
+                    ...d, 
+                    total_players: totalPlayers, 
+                    rewarded_players: rewardedPlayers, 
+                    players: playerAddresses,
+                    tokenLogo: tokenDetails.logoURL,
+                    tokenName: tokenDetails.name,
+                    tokenSymbol: tokenDetails.symbol
+                });
             });
 
             return toReturn;
@@ -230,8 +277,8 @@ export class DealsModel {
             const results = await db.select({
                 deal: userDealsTable.dealID
             }).from(dealsTable)
-            .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
-            .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+                .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
+                .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
 
             return results.length > 0;
         } catch (err) {
@@ -250,7 +297,7 @@ export class DealsModel {
                 });
 
                 const txHash = await smartContract.join(dealID, address);
-                
+
                 await tx.update(userDealsTable).set({
                     joinTxHash: txHash
                 }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
@@ -267,7 +314,7 @@ export class DealsModel {
                 done: true,
                 endDealTx: txHash
             }).where(eq(dealsTable.id, dealID));
-        } catch(err) {
+        } catch (err) {
             console.error("Error marking deal as ended", err);
             throw new Error("Error marking deal as ended in DB");
         }
@@ -278,7 +325,7 @@ export class DealsModel {
             await db.update(userDealsTable).set({
                 counter: 0
             }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
-        } catch(err) {
+        } catch (err) {
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
         }
@@ -289,10 +336,10 @@ export class DealsModel {
             const results = await db.select({
                 id: dealsTable.id
             }).from(dealsTable)
-            .where(eq(dealsTable.activationTxHash, txHash));
+                .where(eq(dealsTable.activationTxHash, txHash));
 
             return results.length !== 0;
-        } catch(err) {
+        } catch (err) {
             console.error("Error checking if activation transaction has been used before", err);
             throw new Error("Error checking if activation transaction hash has been used");
         }

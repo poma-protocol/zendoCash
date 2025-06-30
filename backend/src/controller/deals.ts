@@ -9,6 +9,9 @@ import { eq, and } from "drizzle-orm";
 
 export interface DealDetails {
     id: number,
+    tokenName: string,
+    tokenSymbol: string,
+    tokenLogo: string | null,
     contract_address: string,
     minimum_amount_to_hold: number,
     minimum_days_to_hold: number,
@@ -30,7 +33,8 @@ export interface DealDetails {
 
 export interface GetManyArgs {
     coinAddress?: string,
-    playerAddress?: string
+    playerAddress?: string,
+    featured?: boolean
 }
 
 interface Player {
@@ -93,9 +97,9 @@ export class DealsController {
         }
     }
 
-    async get(dealID: number, dealsModel: DealsModel): Promise<DealDetails | null> {
+    async get(dealID: number, dealsModel: DealsModel, smartcontract: SmartContract): Promise<DealDetails | null> {
         try {
-            const deal = await dealsModel.get(dealID);
+            const deal = await dealsModel.get(dealID, smartcontract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
@@ -119,7 +123,7 @@ export class DealsController {
                     throw new MyError(Errors.INVALID_CONTRACT_ADDRESS);
                 }
 
-                const deals = await dealsModel.getMany({ coinAddress: args.coinAddress });
+                const deals = await dealsModel.getMany({ coinAddress: args.coinAddress }, smartcontract);
                 return deals;
             } else if (args.playerAddress) {
                 const isPlayerAddressValid = smartcontract.isValidAddress(args.playerAddress);
@@ -127,10 +131,13 @@ export class DealsController {
                     throw new MyError(Errors.INVALID_ADDRESS);
                 }
 
-                const deals = await dealsModel.getMany({playerAddress: args.playerAddress});
+                const deals = await dealsModel.getMany({playerAddress: args.playerAddress}, smartcontract);
+                return deals;
+            } else if (args.featured === true) {
+                const deals = await dealsModel.getMany({featured: true}, smartcontract);
                 return deals;
             } else {
-                const deals = await dealsModel.getMany({});
+                const deals = await dealsModel.getMany({}, smartcontract);
                 return deals;
             }
         } catch (err) {
@@ -144,7 +151,7 @@ export class DealsController {
 
     async markAsActivated(dealID: number, txHash: string, dealsModel: DealsModel, smartcontract: SmartContract) {
         try {
-            const deal = await dealsModel.get(dealID);
+            const deal = await dealsModel.get(dealID, smartcontract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
@@ -180,7 +187,7 @@ export class DealsController {
                 throw new MyError(Errors.INVALID_ADDRESS);
             }
 
-            const deal = await dealModel.get(args.deal_id);
+            const deal = await dealModel.get(args.deal_id, smartContract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
