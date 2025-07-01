@@ -179,6 +179,24 @@ export class DealsModel {
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress.toLowerCase()));
+            } else if (args.owner) {
+                deals = await db.select({
+                    id: dealsTable.id,
+                    contract_address: dealsTable.contract_address,
+                    minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
+                    reward: dealsTable.reward,
+                    description: dealsTable.description,
+                    max_rewards: dealsTable.max_rewards,
+                    coin_owner_address: dealsTable.coin_owner_address,
+                    start_date: dealsTable.start_date,
+                    endDate: dealsTable.endDate,
+                    creationTxHash: dealsTable.creationTxHash,
+                    chain: dealsTable.chain,
+                    activated: dealsTable.activated,
+                    creationDate: dealsTable.creationDate,
+                    activationDate: dealsTable.activationDate,
+                }).from(dealsTable).where(eq(dealsTable.coin_owner_address, args.owner.toLowerCase()));
             } else if (args.featured === true) {
                 const today = new Date();
 

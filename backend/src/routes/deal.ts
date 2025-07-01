@@ -82,6 +82,27 @@ router.get("/player/:address", async (req, res) => {
     }
 });
 
+router.get("/owner/:address", async (req , res) => {
+    try {
+        const parsed = addressSchema.safeParse(req.params.address);
+        if (parsed.success) {
+            const address = parsed.data;
+            const deals = await dealsController.getMany({owner: address}, dealModel, smartContract);
+            res.json(deals);
+        } else {
+            const error = parsed.error.issues[0].message;
+            res.status(400).json({message: error});
+        }
+    } catch(err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
+        console.error("Error getting deals that user has created", err);
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
+    }
+})
+
 router.get("/featured", async (req , res) => {
     try {
         const deals = await dealsController.getMany({featured: true}, dealModel, smartContract);
