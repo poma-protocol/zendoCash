@@ -34,7 +34,8 @@ export interface DealDetails {
 export interface GetManyArgs {
     coinAddress?: string,
     playerAddress?: string,
-    featured?: boolean
+    featured?: boolean,
+    owner?: string
 }
 
 interface Player {
@@ -135,6 +136,14 @@ export class DealsController {
                 return deals;
             } else if (args.featured === true) {
                 const deals = await dealsModel.getMany({featured: true}, smartcontract);
+                return deals;
+            } else if (args.owner) {
+                const isValidOwnerAddress = smartcontract.isValidAddress(args.owner);
+                if (isValidOwnerAddress === false) {
+                    throw new MyError(Errors.INVALID_ADDRESS);
+                }
+
+                const deals = await dealsModel.getMany({owner: args.owner}, smartcontract);
                 return deals;
             } else {
                 const deals = await dealsModel.getMany({}, smartcontract);
