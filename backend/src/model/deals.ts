@@ -91,7 +91,8 @@ export class DealsModel {
                 chain: dealsTable.chain,
                 activated: dealsTable.activated,
                 creationDate: dealsTable.creationDate,
-                activationDate: dealsTable.activationDate
+                activationDate: dealsTable.activationDate,
+                description: dealsTable.description,
             }).from(dealsTable).where(eq(dealsTable.id, id));
 
             const deal = deals[0] ?? null;
@@ -155,7 +156,8 @@ export class DealsModel {
                     chain: dealsTable.chain,
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
-                    activationDate: dealsTable.activationDate
+                    activationDate: dealsTable.activationDate,
+                    description: dealsTable.description,
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
             } else if (args.playerAddress) {
                 deals = await db.select({
