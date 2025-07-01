@@ -32,9 +32,9 @@ export class DealsModel {
 
             await db.transaction(async (tx) => {
                 const insertedDeal = await tx.insert(dealsTable).values({
-                    contract_address: args.contract_address,
+                    contract_address: args.contract_address.toLowerCase(),
                     name: args.name,
-                    coin_owner_address: args.coin_owner_address,
+                    coin_owner_address: args.coin_owner_address.toLowerCase(),
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     miniumum_days_to_hold: args.minimum_days_hold,
                     reward: args.reward,
@@ -52,16 +52,16 @@ export class DealsModel {
                     id: dealID,
                     name: args.name,
                     maxParticipants: args.max_rewards_give_out,
-                    creatorAddress: args.coin_owner_address,
+                    creatorAddress: args.coin_owner_address.toLowerCase(),
                     numberDays: args.minimum_days_hold,
                     startDate: new Date(Date.parse(args.start_date)),
                     endDate: new Date(Date.parse(args.end_date)),
-                    contract_address: args.contract_address,
+                    contract_address: args.contract_address.toLowerCase(),
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     reward: args.reward,
                 });
 
-                await tx.update(dealsTable).set({ creationTxHash: txHash }).where(eq(dealsTable.id, dealID));
+                await tx.update(dealsTable).set({ creationTxHash: txHash.toLowerCase() }).where(eq(dealsTable.id, dealID));
             });
 
             if (dealID !== null) {
@@ -157,7 +157,7 @@ export class DealsModel {
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
+                }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress.toLowerCase()));
             } else if (args.playerAddress) {
                 deals = await db.select({
                     id: dealsTable.id,
@@ -175,10 +175,10 @@ export class DealsModel {
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                    done: sql<boolean>`IS NOT NULL ${userDealsTable.rewardSentTxHash}`
+                    done: sql<boolean>`${userDealsTable.rewardSentTxHash} IS NOT NULL`
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
-                    .where(eq(userDealsTable.userAddress, args.playerAddress));
+                    .where(eq(userDealsTable.userAddress, args.playerAddress.toLowerCase()));
             } else if (args.featured === true) {
                 const today = new Date();
 
@@ -269,7 +269,7 @@ export class DealsModel {
             await db.update(dealsTable).set({
                 activated: true,
                 activationDate: new Date(),
-                activationTxHash: txn,
+                activationTxHash: txn.toLowerCase(),
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as activated in DB", err);
@@ -283,7 +283,7 @@ export class DealsModel {
                 deal: userDealsTable.dealID
             }).from(dealsTable)
                 .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
-                .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+                .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
 
             return results.length > 0;
         } catch (err) {
@@ -296,7 +296,7 @@ export class DealsModel {
         try {
             await db.transaction(async (tx) => {
                 await tx.insert(userDealsTable).values({
-                    userAddress: address,
+                    userAddress: address.toLowerCase(),
                     dealID: dealID,
                     counter: 0,
                 });
@@ -304,8 +304,8 @@ export class DealsModel {
                 const txHash = await smartContract.join(dealID, address);
 
                 await tx.update(userDealsTable).set({
-                    joinTxHash: txHash
-                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+                    joinTxHash: txHash.toLowerCase()
+                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
             });
         } catch (err) {
             console.error("Error updating db and contract", err);
@@ -317,7 +317,7 @@ export class DealsModel {
         try {
             await db.update(dealsTable).set({
                 done: true,
-                endDealTx: txHash
+                endDealTx: txHash.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as ended", err);
@@ -329,7 +329,7 @@ export class DealsModel {
         try {
             await db.update(userDealsTable).set({
                 counter: 0
-            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
+            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress.toLowerCase())));
         } catch (err) {
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
@@ -341,7 +341,7 @@ export class DealsModel {
             const results = await db.select({
                 id: dealsTable.id
             }).from(dealsTable)
-                .where(eq(dealsTable.activationTxHash, txHash));
+                .where(eq(dealsTable.activationTxHash, txHash.toLowerCase()));
 
             return results.length !== 0;
         } catch (err) {
