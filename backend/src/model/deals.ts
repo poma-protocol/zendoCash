@@ -157,7 +157,6 @@ export class DealsModel {
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                    description: dealsTable.description,
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
             } else if (args.playerAddress) {
                 deals = await db.select({
