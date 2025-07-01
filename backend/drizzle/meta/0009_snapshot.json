@@ -1,0 +1,226 @@
+{
+  "id": "a632b713-10cf-491d-b187-5cc495c2f777",
+  "prevId": "b5533198-1598-4eff-bcb3-027256b4736c",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.deals": {
+      "name": "deals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "contractAddress": {
+          "name": "contractAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minimumAmountToHold": {
+          "name": "minimumAmountToHold",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minimumDaysToHold": {
+          "name": "minimumDaysToHold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reward": {
+          "name": "reward",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maxRewards": {
+          "name": "maxRewards",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coinOwnerAddress": {
+          "name": "coinOwnerAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startDate": {
+          "name": "startDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endDate": {
+          "name": "endDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creationTransactionHash": {
+          "name": "creationTransactionHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chain": {
+          "name": "chain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dealActivated": {
+          "name": "dealActivated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "activationTransactionHash": {
+          "name": "activationTransactionHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creationDate": {
+          "name": "creationDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "activationDate": {
+          "name": "activationDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "endDealTransactionHash": {
+          "name": "endDealTransactionHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "done": {
+          "name": "done",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "VALID_CHAIN": {
+          "name": "VALID_CHAIN",
+          "value": "\"deals\".\"chain\" = 'arbitrum'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.userDeals": {
+      "name": "userDeals",
+      "schema": "",
+      "columns": {
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dealID": {
+          "name": "dealID",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter": {
+          "name": "counter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joinTransactionHash": {
+          "name": "joinTransactionHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "joinTime": {
+          "name": "joinTime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "lastCountUpdateTime": {
+          "name": "lastCountUpdateTime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rewardSentTransactionHash": {
+          "name": "rewardSentTransactionHash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "userDeals_dealID_deals_id_fk": {
+          "name": "userDeals_dealID_deals_id_fk",
+          "tableFrom": "userDeals",
+          "tableTo": "deals",
+          "columnsFrom": [
+            "dealID"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "userDeals_address_dealID_pk": {
+          "name": "userDeals_address_dealID_pk",
+          "columns": [
+            "address",
+            "dealID"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

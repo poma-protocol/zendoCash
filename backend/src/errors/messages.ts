@@ -7,5 +7,9 @@ export enum Errors {
     INVALID_ADDRESS="Invalid address",
     ALREADY_JOINED="User has already joined the deal",
     NOT_GET_MAIN_DEALS="Could not get deals for main function",
+    INVALID_DATE="Start and end date must be at least today",
+    INVALID_TRANSACTION_HASH="Transaction needs to have the correct reward amount sent and to the correct contract address",
+    TRANSACTION_USED_BEFORE="Activation transaction has been used before",
+    COIN_NOT_EXIST = "Coin does not exist",
     INTERNAL_SERVER_ERROR="Internal server error"
 }

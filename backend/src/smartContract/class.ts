@@ -4,6 +4,10 @@ import { isAddress } from "web3-validator";
 import Web3, { Web3Account } from "web3";
 import "dotenv/config";
 import ABI from "../../abi.json";
+import COINABI from "../../coin.json";
+import { DealDetails } from "../controller/deals";
+import { decodedTransactionSchema } from "../types";
+import { Errors } from "../errors/messages";
 const abi = ABI.abi;
 
 
@@ -20,6 +24,13 @@ interface CreateDealsInSmartContract {
     reward: number
 }
 
+interface TokenDetails {
+    name: string,
+    symbol: string,
+    decimals: number,
+    logoURL: string | null
+}
+
 export class SmartContract {
     alchemy: Alchemy
     web3: Web3
@@ -32,11 +43,45 @@ export class SmartContract {
     async getAccount(): Promise<Web3Account> {
         try {
             // const privateKey = await infisical.getSecret("PRIVATE_KEY", process.env.INFISICAL_ENVIRONMENT);
-            const account = this.web3.eth.accounts.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+            const account = this.web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
             return account;
         } catch (err) {
             console.log("Error getting account", err);
             throw new MyError("Error getting account");
+        }
+    }
+
+    async getTokenDetails(address: string): Promise<TokenDetails | null> {
+        try {
+            const isValid = this.isValidAddress(address);
+            if (isValid === false) {
+                throw new MyError(Errors.INVALID_ADDRESS);
+            }
+
+            const metadata = await this.alchemy.core.getTokenMetadata(address);
+            if (metadata.name && metadata.symbol && metadata.decimals) {
+                return {
+                    name: metadata.name,
+                    symbol: metadata.symbol,
+                    decimals: metadata.decimals,
+                    logoURL: metadata.logo
+                }
+            } else {
+                return null;
+            }
+        } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+
+            if (err instanceof Error) {
+                if (err.message.includes("expected a valid token contract address")) {
+                    throw new MyError(Errors.COIN_NOT_EXIST);
+                }
+            }
+
+            console.error("Error getting token details", err);
+            throw new Error("Error getting token details");
         }
     }
 
@@ -53,7 +98,7 @@ export class SmartContract {
         try {
             const metadata = await this.alchemy.core.getTokenMetadata(args.contract_address);
             if (metadata.decimals) {
-                const processedReward = BigInt(args.reward * Math.pow(10, metadata.decimals));
+                const processedReward = BigInt((args.maxParticipants * args.reward) * Math.pow(10, metadata.decimals));
                 const goal = BigInt(args.minimum_amount_to_hold * Math.pow(10, metadata.decimals));
 
                 const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
@@ -117,6 +162,32 @@ export class SmartContract {
         }
     }
 
+    async activate(dealID: number) {
+        try {
+            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const account = await this.getAccount();
+            const block = await this.web3.eth.getBlock();
+
+            const transaction = {
+                from: account.address,
+                to: process.env.CONTRACT_ADDRESS,
+                data: contract.methods.activateDeal(
+                    BigInt(dealID),
+                ).encodeABI(),
+                maxFeePerGas: block.baseFeePerGas! * 2n,
+                maxPriorityFeePerGas: 100000,
+            };
+            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+                transaction,
+                account.privateKey,
+            );
+            await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+        } catch (err) {
+            console.error("Error activating deal", err);
+            throw new Error("Error activating deal");
+        }
+    }
+
     async join(dealID: number, address: string): Promise<string> {
         try {
             const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
@@ -141,7 +212,7 @@ export class SmartContract {
 
             return receipt.transactionHash.toString();
         } catch (err) {
-            console.error("Error joining deal in smart contract");
+            console.error("Error joining deal in smart contract", err);
             throw new Error("Error joining user to deal");
         }
     }
@@ -155,7 +226,7 @@ export class SmartContract {
             const transaction = {
                 from: account.address,
                 to: process.env.CONTRACT_ADDRESS,
-                data: contract.methods.endDeal(
+                data: contract.methods.enddeal(
                     BigInt(dealID),
                 ).encodeABI(),
                 maxFeePerGas: block.baseFeePerGas! * 2n,
@@ -176,6 +247,7 @@ export class SmartContract {
 
     async updateCount(dealID: number, address: string): Promise<string> {
         try {
+            console.log(`Updating count for deal ${dealID} for user ${address}`);
             const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
             const block = await this.web3.eth.getBlock();
@@ -200,6 +272,70 @@ export class SmartContract {
         } catch (err) {
             console.error("Error updating count in smart contract", err);
             throw new Error("Could not update count");
+        }
+    }
+
+    async verifyActivateTransaction(deal: DealDetails, txHash: string): Promise<boolean> {
+        try {
+            if(!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
+                throw new Error("Set RPC_URL and CONTRACT_ADDRESS in env file");
+            }
+
+            const body = {
+                jsonrpc: "2.0",
+                id: "254",
+                method: "eth_getTransactionByHash",
+                params: [
+                    txHash
+                ]
+            };
+            const result = await fetch(process.env.RPC_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(body)
+            });
+            
+            if (!result.ok) {
+                throw new Error("Could not get details of transaction");
+            }
+            const resBody = await result.json();
+            
+            const parsed = decodedTransactionSchema.safeParse(resBody);
+            if (parsed.success) {
+                const transaction = parsed.data.result;
+                if (transaction.from.toLowerCase() !== deal.coin_owner_address.toLowerCase()) {
+                    return false;
+                }
+
+                if (transaction.to.toLowerCase() !== deal.contract_address.toLowerCase()) {
+                    return false;
+                }
+
+                const coinContract = new this.web3.eth.Contract(COINABI, deal.contract_address);
+                const decodedTransaction = coinContract.decodeMethodData(transaction.input);
+                if (decodedTransaction.__method__.includes("transfer(address,uint256)")) {
+                    const receivingAccount = decodedTransaction['dst'] as string;
+                    const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
+                    const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
+                    if (metadata.decimals) {
+                        const expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
+                    } else {
+                        throw new Error("Error getting decimals of coin");
+                    }
+                } else {
+                    return false;
+                }
+            } else {
+                console.log("Error parsing result data");
+                console.log(parsed.error);
+            }
+            return false;
+        } catch (err) {
+            console.error("Error verifying transaction", err);
+            throw new Error("Error verifying transaction");
         }
     }
 }

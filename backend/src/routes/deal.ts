@@ -1,26 +1,26 @@
 import { Router } from "express";
 import { MyError } from "../errors/type";
 import { Errors } from "../errors/messages";
-import { addressSchema, createDealSchema, joinSchema } from "../types";
+import { activateSchema, addressSchema, createDealSchema, joinSchema } from "../types";
 import dealsController from "../controller/deals";
 import smartContract from "../smartContract";
 import dealModel from "../model/deals";
 
 const router: Router = Router();
 
-router.get("/id/:id", async(req, res) => {
+router.get("/id/:id", async (req, res) => {
     try {
         const dealID = Number.parseInt(req.params.id);
-        const deal = await dealsController.get(dealID, dealModel);
+        const deal = await dealsController.get(dealID, dealModel, smartContract);
         res.json(deal);
-    } catch(err) {
+    } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
 
         console.error("Error getting deal", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 });
 
@@ -29,102 +29,135 @@ router.get("/coin/:coin", async (req, res) => {
         const parsed = addressSchema.safeParse(req.params.coin);
         if (parsed.success) {
             const coinAddress = parsed.data;
-            const deals = await dealsController.getMany({coinAddress}, dealModel, smartContract);
+            const deals = await dealsController.getMany({ coinAddress }, dealModel, smartContract);
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            res.status(400).json({message: error});
+            res.status(400).json({ message: error });
         }
-    } catch(err) {
+    } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
 
         console.error("Error getting deals for a specific coin", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 });
 
-router.get("/all", async(req , res) => {
+router.get("/all", async (req, res) => {
     try {
-        const deals = await dealModel.getMany({});
+        const deals = await dealsController.getMany({}, dealModel, smartContract);
         res.json(deals);
-    } catch(err) {
+    } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
+        
         console.log("Error getting deals", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 });
 
-router.get("/player/:address", async (req , res) => {
+router.get("/player/:address", async (req, res) => {
     try {
         const parsed = addressSchema.safeParse(req.params.address);
         if (parsed.success) {
             const address = parsed.data;
-            const deals = await dealsController.getMany({playerAddress: address}, dealModel, smartContract);
+            const deals = await dealsController.getMany({ playerAddress: address }, dealModel, smartContract);
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            res.status(400).json({message: error});
+            res.status(400).json({ message: error });
         }
-    } catch(err) {
+    } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
         console.error("Error getting deals that a player has joined in", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 });
 
-router.post("/activate/:id", async(req, res) => {
+router.get("/featured", async (req , res) => {
     try {
-        const id = Number.parseInt(req.params.id);
-        await dealsController.markAsActivated(id, dealModel);
-        res.status(201).json({message: "Deal marked as activated"})
+        const deals = await dealsController.getMany({featured: true}, dealModel, smartContract);
+        res.json(deals);
     } catch(err) {
         if (err instanceof MyError) {
             res.status(400).json({message: err.message});
             return;
         }
-
-        console.error("Error updating deal to activated", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        console.error("Error getting deals that a player has joined in", err);
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 })
 
-router.post("/", async(req, res) => {
+router.post("/activate", async (req, res) => {
+    try {
+        const parsed = activateSchema.safeParse(req.body);
+        if (parsed.success) {
+            const details = parsed.data;
+            await dealsController.markAsActivated(details.dealID, details.transaction_hash, dealModel, smartContract);
+            res.status(201).json({ message: "Deal marked as activated" })
+        } else {
+            const errors = parsed.error.issues[0].message;
+            res.status(400).json({message: errors});
+        }
+    } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({ message: err.message });
+            return;
+        }
+
+        console.error("Error updating deal to activated", err);
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
+    }
+})
+
+router.post("/", async (req, res) => {
     try {
         const parsed = createDealSchema.safeParse(req.body);
         if (parsed.success) {
             const data = parsed.data;
             const dealID = await dealsController.create(data, smartContract, dealModel);
-            res.status(201).json({dealID: dealID});
+            res.status(201).json({ dealID: dealID });
         } else {
             const error = parsed.error.issues[0].message;
-            res.status(400).json({message: error});
+            res.status(400).json({ message: error });
         }
-    } catch(err) {
+    } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         } else {
             console.log("Error creating deal", err);
-            res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+            res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
         }
     }
 });
 
-router.post("/join", async (req , res) => {
+router.post("/join", async (req, res) => {
     try {
         const parsed = joinSchema.safeParse(req.body);
         if (parsed.success) {
             const data = parsed.data;
             const hasBalance = await dealsController.join(data, smartContract, dealModel);
-            res.status(201).json({hasBalance});
+            res.status(201).json({ hasBalance });
         } else {
             const error = parsed.error.issues[0].message;
-            res.status(400).json({message: error});
+            res.status(400).json({ message: error });
         }
-    } catch(err) {
+    } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({message: err.message});
+            return;
+        }
         console.error("Error joining deal at endpoint", err);
-        res.status(500).json({message: Errors.INTERNAL_SERVER_ERROR});
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 })
 

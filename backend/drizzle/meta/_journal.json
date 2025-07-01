@@ -50,6 +50,34 @@
       "when": 1750151910747,
       "tag": "0006_chilly_proudstar",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1750240599444,
+      "tag": "0007_next_warbound",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1750431047217,
+      "tag": "0008_married_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1750438878708,
+      "tag": "0009_gifted_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1751030398565,
+      "tag": "0010_productive_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }

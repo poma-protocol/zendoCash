@@ -9,6 +9,9 @@ import { eq, and } from "drizzle-orm";
 
 export interface DealDetails {
     id: number,
+    tokenName: string,
+    tokenSymbol: string,
+    tokenLogo: string | null,
     contract_address: string,
     minimum_amount_to_hold: number,
     minimum_days_to_hold: number,
@@ -30,7 +33,8 @@ export interface DealDetails {
 
 export interface GetManyArgs {
     coinAddress?: string,
-    playerAddress?: string
+    playerAddress?: string,
+    featured?: boolean
 }
 
 interface Player {
@@ -52,6 +56,16 @@ export interface MainFunctionDeals {
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
         try {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(Date.parse(args.end_date));
+            const startDate = new Date(Date.parse(args.start_date));
+
+            if (endDate < today || startDate < today) {
+                throw new MyError(Errors.INVALID_DATE);
+            }
+
             // Check if coin owner address and contract address exist
             const validCoinOwner = smartContract.isValidAddress(args.coin_owner_address);
             if (validCoinOwner === false) {
@@ -65,9 +79,9 @@ export class DealsController {
             }
 
             const minimumEndDate = new Date(args.start_date);
-            minimumEndDate.setDate(args.start_date.getDate() + 1);
+            minimumEndDate.setDate(startDate.getDate() + 1);
 
-            if (args.end_date < minimumEndDate) {
+            if (endDate < minimumEndDate) {
                 throw new MyError(Errors.INVALID_END_DATE);
             }
 
@@ -83,9 +97,9 @@ export class DealsController {
         }
     }
 
-    async get(dealID: number, dealsModel: DealsModel): Promise<DealDetails | null> {
+    async get(dealID: number, dealsModel: DealsModel, smartcontract: SmartContract): Promise<DealDetails | null> {
         try {
-            const deal = await dealsModel.get(dealID);
+            const deal = await dealsModel.get(dealID, smartcontract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
@@ -109,7 +123,7 @@ export class DealsController {
                     throw new MyError(Errors.INVALID_CONTRACT_ADDRESS);
                 }
 
-                const deals = await dealsModel.getMany({ coinAddress: args.coinAddress });
+                const deals = await dealsModel.getMany({ coinAddress: args.coinAddress }, smartcontract);
                 return deals;
             } else if (args.playerAddress) {
                 const isPlayerAddressValid = smartcontract.isValidAddress(args.playerAddress);
@@ -117,10 +131,13 @@ export class DealsController {
                     throw new MyError(Errors.INVALID_ADDRESS);
                 }
 
-                const deals = await dealsModel.getMany({playerAddress: args.playerAddress});
+                const deals = await dealsModel.getMany({playerAddress: args.playerAddress}, smartcontract);
+                return deals;
+            } else if (args.featured === true) {
+                const deals = await dealsModel.getMany({featured: true}, smartcontract);
                 return deals;
             } else {
-                const deals = await dealsModel.getMany({});
+                const deals = await dealsModel.getMany({}, smartcontract);
                 return deals;
             }
         } catch (err) {
@@ -132,15 +149,26 @@ export class DealsController {
         }
     }
 
-    async markAsActivated(dealID: number, dealsModel: DealsModel) {
+    async markAsActivated(dealID: number, txHash: string, dealsModel: DealsModel, smartcontract: SmartContract) {
         try {
-            const deal = await dealsModel.get(dealID);
+            const deal = await dealsModel.get(dealID, smartcontract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
 
+            const hasTransactionBeenUsed = await dealsModel.hasActivationTransactionBeenUsed(txHash);
+            if (hasTransactionBeenUsed === true) {
+                throw new MyError(Errors.TRANSACTION_USED_BEFORE);
+            }
+
+            const isTransactionValid = await smartcontract.verifyActivateTransaction(deal, txHash);
+            if (!isTransactionValid) {
+                throw new MyError(Errors.INVALID_TRANSACTION_HASH);
+            }
+
             // Update deal in DB
-            await dealsModel.markDealActivatedInDB(dealID);
+            await smartcontract.activate(dealID);    
+            await dealsModel.markDealActivatedInDB(dealID, txHash);
         } catch (err) {
             if (err instanceof MyError) {
                 throw err;
@@ -159,7 +187,7 @@ export class DealsController {
                 throw new MyError(Errors.INVALID_ADDRESS);
             }
 
-            const deal = await dealModel.get(args.deal_id);
+            const deal = await dealModel.get(args.deal_id, smartContract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
@@ -170,8 +198,7 @@ export class DealsController {
             }
 
             const hasBalance = await smartContract.doesUserHaveBalance(args.address, deal.contract_address, deal.reward);
-            const counter = hasBalance === true ? 1 : 0;
-            await dealModel.updateDBAndContractOnJoin(args.deal_id, args.address, counter, smartContract);
+            await dealModel.updateDBAndContractOnJoin(args.deal_id, args.address, smartContract);
             return hasBalance;
         } catch (err) {
             if (err instanceof MyError) {
@@ -200,10 +227,19 @@ export class DealsController {
                     address: userDealsTable.userAddress,
                     lastCountUpdateTime: userDealsTable.lastCountUpdateTime,
                     counter: userDealsTable.counter,
-                    txHash: userDealsTable.rewardSentTxHash
+                    txHash: userDealsTable.rewardSentTxHash,
+                    joinTime: userDealsTable.joinTime
                 }).from(userDealsTable).where(eq(userDealsTable.dealID, deal.id));
 
-                const participatingPlayers = playersResults.filter((p) => p.txHash === null);
+                const participatingPlayers = playersResults.filter((p) => {
+                    const oneDayAfterJoining = new Date(p.joinTime);
+                    oneDayAfterJoining.setDate(p.joinTime.getDate() + 1);
+                    const today = new Date();
+                
+                    if (oneDayAfterJoining < today && p.txHash !== null) {
+                        return p;
+                    }
+                });
                 const players: Player[] = participatingPlayers.map((p) => {
                     return {
                         address: p.address,
@@ -258,7 +294,7 @@ export class DealsController {
         }
     }
 
-    async updateCount(dealID: number, player: Player, minimumBalance: number, smartcontract: SmartContract) {
+    async updateCount(dealID: number, player: Player, minumumDaysHold: number, smartcontract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
                 const updatedCount = player.count++;
@@ -266,8 +302,9 @@ export class DealsController {
                     counter: updatedCount
                 }).where(and(eq(userDealsTable.userAddress, player.address), eq(userDealsTable.dealID, dealID)));
 
-                if (updatedCount >= minimumBalance) {
+                if (updatedCount >= minumumDaysHold) {
                     const txHash = await smartcontract.updateCount(dealID, player.address);
+                    console.log("Transaction hash", txHash);
                     await tx.update(userDealsTable).set({
                         rewardSentTxHash: txHash
                     }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, player.address)));

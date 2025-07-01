@@ -1,10 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
+import smartContract from "../smartContract";
 
 interface RawDealDetails {
     id: number;
@@ -19,6 +20,7 @@ interface RawDealDetails {
     creationTxHash: string | null;
     chain: string;
     activated: boolean;
+    description: string | null;
     creationDate: Date;
     activationDate: Date | null;
 }
@@ -37,9 +39,10 @@ export class DealsModel {
                     miniumum_days_to_hold: args.minimum_days_hold,
                     reward: args.reward,
                     max_rewards: args.max_rewards_give_out,
-                    start_date: args.start_date,
-                    endDate: args.end_date,
-                    chain: ARBITRUM_CHAIN
+                    start_date: new Date(Date.parse(args.start_date)),
+                    endDate: new Date(Date.parse(args.end_date)),
+                    chain: ARBITRUM_CHAIN,
+                    description: args.description
                 }).returning({ id: dealsTable.id });
 
                 dealID = insertedDeal[0].id;
@@ -51,8 +54,8 @@ export class DealsModel {
                     maxParticipants: args.max_rewards_give_out,
                     creatorAddress: args.coin_owner_address,
                     numberDays: args.minimum_days_hold,
-                    startDate: args.start_date,
-                    endDate: args.end_date,
+                    startDate: new Date(Date.parse(args.start_date)),
+                    endDate: new Date(Date.parse(args.end_date)),
                     contract_address: args.contract_address,
                     minimum_amount_to_hold: args.minimum_amount_hold,
                     reward: args.reward,
@@ -72,7 +75,7 @@ export class DealsModel {
         }
     }
 
-    async get(id: number): Promise<DealDetails | null> {
+    async get(id: number, smartcontract: SmartContract): Promise<DealDetails | null> {
         try {
             const deals = await db.select({
                 id: dealsTable.id,
@@ -88,7 +91,8 @@ export class DealsModel {
                 chain: dealsTable.chain,
                 activated: dealsTable.activated,
                 creationDate: dealsTable.creationDate,
-                activationDate: dealsTable.activationDate
+                activationDate: dealsTable.activationDate,
+                description: dealsTable.description,
             }).from(dealsTable).where(eq(dealsTable.id, id));
 
             const deal = deals[0] ?? null;
@@ -111,8 +115,20 @@ export class DealsModel {
                 }
             }
             const playerAddresses = players.map((d) => d.address);
+            const tokenDetails = await smartcontract.getTokenDetails(deal.contract_address);
+            if (!tokenDetails) {
+                return null;
+            }
 
-            const toReturn = { ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses };
+            const toReturn: DealDetails = {
+                ...d,
+                total_players: totalPlayers,
+                rewarded_players: rewardedPlayers,
+                players: playerAddresses,
+                tokenName: tokenDetails.name,
+                tokenSymbol: tokenDetails.symbol,
+                tokenLogo: tokenDetails.logoURL,
+            };
             return toReturn;
         } catch (err) {
             console.error("Error getting deals from database", err);
@@ -120,7 +136,7 @@ export class DealsModel {
         }
     }
 
-    async getMany(args: GetManyArgs): Promise<DealDetails[]> {
+    async getMany(args: GetManyArgs, smartcontract: SmartContract): Promise<DealDetails[]> {
         try {
             let deals: RawDealDetails[] = [];
 
@@ -131,6 +147,7 @@ export class DealsModel {
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
+                    description: dealsTable.description,
                     max_rewards: dealsTable.max_rewards,
                     coin_owner_address: dealsTable.coin_owner_address,
                     start_date: dealsTable.start_date,
@@ -139,12 +156,13 @@ export class DealsModel {
                     chain: dealsTable.chain,
                     activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
-                    activationDate: dealsTable.activationDate
+                    activationDate: dealsTable.activationDate,
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress));
             } else if (args.playerAddress) {
                 deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
@@ -161,10 +179,34 @@ export class DealsModel {
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress));
+            } else if (args.featured === true) {
+                const today = new Date();
+
+                deals = await db.select({
+                    id: dealsTable.id,
+                    contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
+                    minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
+                    minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
+                    reward: dealsTable.reward,
+                    max_rewards: dealsTable.max_rewards,
+                    coin_owner_address: dealsTable.coin_owner_address,
+                    start_date: dealsTable.start_date,
+                    endDate: dealsTable.endDate,
+                    creationTxHash: dealsTable.creationTxHash,
+                    chain: dealsTable.chain,
+                    activated: dealsTable.activated,
+                    creationDate: dealsTable.creationDate,
+                    activationDate: dealsTable.activationDate,
+                }).from(dealsTable)
+                    .where(and(gt(dealsTable.endDate, today), eq(dealsTable.activated, true)))
+                    .orderBy(desc(dealsTable.id))
+                    .limit(3);
             } else {
                 deals = await db.select({
                     id: dealsTable.id,
                     contract_address: dealsTable.contract_address,
+                    description: dealsTable.description,
                     minimum_amount_to_hold: dealsTable.minimum_amount_to_hold,
                     minimum_days_to_hold: dealsTable.miniumum_days_to_hold,
                     reward: dealsTable.reward,
@@ -181,12 +223,14 @@ export class DealsModel {
             }
 
             const toReturn: DealDetails[] = [];
-            deals.map(async (d) => {
+
+            for await (const d of deals) {
                 const players = await db.select({
                     address: userDealsTable.userAddress,
                     rewardTx: userDealsTable.rewardSentTxHash
                 }).from(userDealsTable)
                     .where(eq(userDealsTable.dealID, d.id));
+
 
                 const totalPlayers = players.length;
                 let rewardedPlayers = 0;
@@ -197,8 +241,21 @@ export class DealsModel {
                 }
                 const playerAddresses = players.map((d) => d.address);
 
-                toReturn.push({ ...d, total_players: totalPlayers, rewarded_players: rewardedPlayers, players: playerAddresses });
-            });
+                const tokenDetails = await smartcontract.getTokenDetails(d.contract_address);
+                if (tokenDetails === null) {
+                    continue;
+                }
+
+                toReturn.push({
+                    ...d,
+                    total_players: totalPlayers,
+                    rewarded_players: rewardedPlayers,
+                    players: playerAddresses,
+                    tokenLogo: tokenDetails.logoURL,
+                    tokenName: tokenDetails.name,
+                    tokenSymbol: tokenDetails.symbol
+                });
+            }
 
             return toReturn;
         } catch (err) {
@@ -207,11 +264,12 @@ export class DealsModel {
         }
     }
 
-    async markDealActivatedInDB(dealID: number) {
+    async markDealActivatedInDB(dealID: number, txn: string) {
         try {
             await db.update(dealsTable).set({
                 activated: true,
-                activationDate: new Date()
+                activationDate: new Date(),
+                activationTxHash: txn,
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as activated in DB", err);
@@ -223,7 +281,9 @@ export class DealsModel {
         try {
             const results = await db.select({
                 deal: userDealsTable.dealID
-            }).from(dealsTable).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+            }).from(dealsTable)
+                .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
+                .where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
 
             return results.length > 0;
         } catch (err) {
@@ -232,17 +292,17 @@ export class DealsModel {
         }
     }
 
-    async updateDBAndContractOnJoin(dealID: number, address: string, counter: number, smartContract: SmartContract) {
+    async updateDBAndContractOnJoin(dealID: number, address: string, smartContract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
                 await tx.insert(userDealsTable).values({
                     userAddress: address,
                     dealID: dealID,
-                    counter: counter,
+                    counter: 0,
                 });
 
                 const txHash = await smartContract.join(dealID, address);
-                
+
                 await tx.update(userDealsTable).set({
                     joinTxHash: txHash
                 }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
@@ -259,7 +319,7 @@ export class DealsModel {
                 done: true,
                 endDealTx: txHash
             }).where(eq(dealsTable.id, dealID));
-        } catch(err) {
+        } catch (err) {
             console.error("Error marking deal as ended", err);
             throw new Error("Error marking deal as ended in DB");
         }
@@ -270,9 +330,23 @@ export class DealsModel {
             await db.update(userDealsTable).set({
                 counter: 0
             }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
-        } catch(err) {
+        } catch (err) {
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
+        }
+    }
+
+    async hasActivationTransactionBeenUsed(txHash: string): Promise<boolean> {
+        try {
+            const results = await db.select({
+                id: dealsTable.id
+            }).from(dealsTable)
+                .where(eq(dealsTable.activationTxHash, txHash));
+
+            return results.length !== 0;
+        } catch (err) {
+            console.error("Error checking if activation transaction has been used before", err);
+            throw new Error("Error checking if activation transaction hash has been used");
         }
     }
 }

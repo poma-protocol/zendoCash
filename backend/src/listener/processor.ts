@@ -7,6 +7,7 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
         // If end date for deal has passed mark deal and ended and continue
         const now = new Date();
         if (deal.endDate <= now) {
+            console.log(`DEAL ${deal.deal_id} has ended`, deal);
             await dealController.markEnded(deal.deal_id, smartContract, dealModel);
             return;
         }
@@ -17,6 +18,7 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
             const hasBalance = await smartContract.doesUserHaveBalance(player.address, deal.coin_address, deal.minimum_balance);
             // If player doesn't have reset their counter and send to frontend
             if (hasBalance === false) {
+                console.log(`Player ${player.address} does not have balance for deal`, deal, "resetting their count");
                 await dealController.resetCount(deal.deal_id, player.address, dealModel);
                 continue;
             }
@@ -26,7 +28,8 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
             minimumLastUpdateTime.setDate(now.getDate() - 1);
 
             // If it was atleast a day ago update counter
-            if (player.lastCountUpdateTime !== null && player.lastCountUpdateTime <= minimumLastUpdateTime) {
+            if (player.lastCountUpdateTime === null || player.lastCountUpdateTime <= minimumLastUpdateTime) {
+                console.log(`Updating the count for player`, player, "for deal", deal)
                 // If counter is at minimum days send reward
                 await dealController.updateCount(deal.deal_id, player, deal.minimum_days_hold, smartContract);
             }
