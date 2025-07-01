@@ -304,8 +304,8 @@ export class DealsModel {
                 const txHash = await smartContract.join(dealID, address);
 
                 await tx.update(userDealsTable).set({
-                    joinTxHash: txHash
-                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address)));
+                    joinTxHash: txHash.toLowerCase()
+                }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
             });
         } catch (err) {
             console.error("Error updating db and contract", err);
@@ -317,7 +317,7 @@ export class DealsModel {
         try {
             await db.update(dealsTable).set({
                 done: true,
-                endDealTx: txHash
+                endDealTx: txHash.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as ended", err);
@@ -329,7 +329,7 @@ export class DealsModel {
         try {
             await db.update(userDealsTable).set({
                 counter: 0
-            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress)));
+            }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress.toLowerCase())));
         } catch (err) {
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
@@ -341,7 +341,7 @@ export class DealsModel {
             const results = await db.select({
                 id: dealsTable.id
             }).from(dealsTable)
-                .where(eq(dealsTable.activationTxHash, txHash));
+                .where(eq(dealsTable.activationTxHash, txHash.toLowerCase()));
 
             return results.length !== 0;
         } catch (err) {
