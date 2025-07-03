@@ -10,6 +10,7 @@
     "migrate": "npx drizzle-kit migrate",
     "studio": "pnpm drizzle-kit studio --verbose",
     "test": "jest",
+    "start": "node dist/index.mjs",
     "worker": "pnpm tsx src/listener/main.ts"
   },
   "keywords": [],

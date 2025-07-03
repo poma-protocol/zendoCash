@@ -21,13 +21,13 @@ export default async function main() {
     }
 }
 
-main();
-// const job = new CronJob(
-//     '0 0 * * * *',
-//     async () => {
-//         await main()
-//     },
-//     null,
-//     true,
-//     'system'
-// );
+console.log("Starting job")
+const job = new CronJob(
+    '0 0 * * * *',
+    async () => {
+        await main()
+    },
+    null,
+    true,
+    'system'
+);
