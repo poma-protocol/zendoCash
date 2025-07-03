@@ -12,6 +12,7 @@ export interface DealDetails {
     tokenName: string,
     tokenSymbol: string,
     tokenLogo: string | null,
+    tokenPrice: number,
     contract_address: string,
     minimum_amount_to_hold: number,
     minimum_days_to_hold: number,

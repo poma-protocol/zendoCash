@@ -128,6 +128,7 @@ export class DealsModel {
                 tokenName: tokenDetails.name,
                 tokenSymbol: tokenDetails.symbol,
                 tokenLogo: tokenDetails.logoURL,
+                tokenPrice: tokenDetails.price
             };
             return toReturn;
         } catch (err) {
@@ -271,7 +272,8 @@ export class DealsModel {
                     players: playerAddresses,
                     tokenLogo: tokenDetails.logoURL,
                     tokenName: tokenDetails.name,
-                    tokenSymbol: tokenDetails.symbol
+                    tokenSymbol: tokenDetails.symbol,
+                    tokenPrice: tokenDetails.price
                 });
             }
 

@@ -53,6 +53,7 @@ describe("Deal Controller Tests", () => {
         tokenLogo: "",
         tokenName: "",
         tokenSymbol: "",
+        tokenPrice: 0
     }
 
     const joinArgs = {
