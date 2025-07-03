@@ -25,7 +25,12 @@ export const joinSchema = z.object({
 export const activateSchema = z.object({
     dealID: z.number({message: "Invalid deal"}),
     transaction_hash: z.string({message: "Transaction hash must be a string"}).regex(/^(0x)?[0-9a-fA-F]{64}$/, {message: "Must be a valid ethereum transaction hash"}),
-})
+});
+
+export const commissionSchema = z.object({
+    dealID: z.number({message: "Invalid deal"}),
+    transaction_hash: z.string({message: "Transaction hash must be a string"}).regex(/^(0x)?[0-9a-fA-F]{64}$/, {message: "Must be a valid ethereum transaction hash"}),
+});
 
 export type JoinSchemaType = z.infer<typeof joinSchema>;
 
@@ -38,3 +43,17 @@ export const decodedTransactionSchema = z.object({
         to: z.string()
     })
 });
+
+const tokenPrice = z.object({
+    symbol: z.string(),
+    prices: z.array(z.object({
+        currency: z.string(),
+        value: z.string().transform((arg) => Number.parseFloat(arg))
+    }))
+})
+
+export const tokenPriceSchema = z.object({
+    data: z.array(tokenPrice)
+});
+
+export type TokenPrice = z.infer<typeof tokenPriceSchema>;

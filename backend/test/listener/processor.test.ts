@@ -28,6 +28,9 @@ describe("Listener processor tests", () => {
         ]
     }
 
+    const passedEndDate = new Date(today);
+    passedEndDate.setDate(today.getDate() - deal.minimum_days_hold);
+
     beforeEach(async () => {
         smartContractMock.doesUserHaveBalance = jest.fn().mockImplementation((address, coinAddress, balance) => {
             return new Promise((res, rej) => {
@@ -40,8 +43,8 @@ describe("Listener processor tests", () => {
         })
     })
 
-    it("should mark a deal as ended if end date is past current time and stop", async () => {
-        await processMainDeal({...deal, endDate: today}, dealsControllerMock, smartContractMock, dealsModelMock);
+    it("should mark a deal as ended if end date + days to hold is past current time and stop", async () => {
+        await processMainDeal({...deal, endDate: passedEndDate}, dealsControllerMock, smartContractMock, dealsModelMock);
         expect(dealsControllerMock.markEnded).toHaveBeenCalledTimes(1);
         expect(dealsControllerMock.markEnded).toHaveBeenCalledWith(deal.deal_id, smartContractMock, dealsModelMock);
     });

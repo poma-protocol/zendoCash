@@ -19,6 +19,8 @@ describe("Deal Controller Tests", () => {
     tomorrow.setDate(today.getDate() + 1);
 
     const createdDealID = 100;
+    const futureDeal = 2;
+    const pastDeal = 3;
 
     const createArgs = {
         name: "Test",
@@ -40,14 +42,22 @@ describe("Deal Controller Tests", () => {
         max_rewards: createArgs.max_rewards_give_out,
         start_date: today,
         endDate: tomorrow,
+        description: "",
         creationTxHash: validTransactionHash,
         chain: "arbitrum",
-        activated: false,
+        activated: true,
         creationDate: today,
-        activationDate: null,
+        activationDate: today,
         players: [],
         total_players: 0,
-        rewarded_players: 0
+        rewarded_players: 0,
+        tokenLogo: "",
+        tokenName: "",
+        tokenSymbol: "",
+        tokenPrice: 0,
+        tokenDecimals: 1,
+        commissionDate: today,
+        commissionPaid: true
     }
 
     const joinArgs = {
@@ -82,8 +92,14 @@ describe("Deal Controller Tests", () => {
 
         dealsModelMock.get = jest.fn().mockImplementation((id: number) => {
             return new Promise((res, rej) => {
-                if (id === createdDealID) {
-                    res(createdDealDetails);
+                if (id === createdDealID || id === futureDeal || id === pastDeal) {
+                    if (id === createdDealID) {
+                        res(createdDealDetails);
+                    } else if (id === futureDeal) {
+                        res({ ...createdDealDetails, start_date: tomorrow });
+                    } else {
+                        res({ ...createdDealDetails, endDate: today })
+                    }
                 } else {
                     res(null);
                 }
@@ -100,7 +116,7 @@ describe("Deal Controller Tests", () => {
             })
         });
 
-        smartContractMock.verifyActivateTransaction = jest.fn().mockImplementation((deal: DealDetails, txHash: string) => {
+        smartContractMock.verifyTransaction = jest.fn().mockImplementation((deal: DealDetails, txHash: string, isActivate: boolean) => {
             return new Promise((res, rej) => {
                 if (txHash === validTransactionHash && deal.id === createdDealID) {
                     res(true);
@@ -301,6 +317,40 @@ describe("Deal Controller Tests", () => {
                 expect(false).toBe(true);
             }
         });
+
+        it("should fail if the start date hasn't reached", async () => {
+            try {
+                await testDealController.join({ ...joinArgs, deal_id: futureDeal }, smartContractMock, dealsModelMock);
+                expect(false).toBe(true);
+            } catch (err) {
+                if (err instanceof MyError) {
+                    if (err.message === Errors.DEAL_NOT_YET_STARTED) {
+                        expect(true).toBe(true);
+                        return;
+                    }
+
+                }
+                console.log("Unknown err", err);
+                expect(false).toBe(true);
+            }
+        });
+
+        it("should fail if the end date has passed", async () => {
+            try {
+                await testDealController.join({ ...joinArgs, deal_id: pastDeal }, smartContractMock, dealsModelMock);
+                expect(false).toBe(true);
+            } catch (err) {
+                if (err instanceof MyError) {
+                    if (err.message === Errors.DEAL_ENDED) {
+                        expect(true).toBe(true);
+                        return;
+                    }
+                }
+
+                console.log("Unknown err", err);
+                expect(false).toBe(true);
+            }
+        })
 
         it("should return false and set counter to 0 if user does not have required coins", async () => {
             try {

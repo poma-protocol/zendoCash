@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { MyError } from "../errors/type";
 import { Errors } from "../errors/messages";
-import { activateSchema, addressSchema, createDealSchema, joinSchema } from "../types";
+import { activateSchema, addressSchema, commissionSchema, createDealSchema, joinSchema } from "../types";
 import dealsController from "../controller/deals";
 import smartContract from "../smartContract";
 import dealModel from "../model/deals";
@@ -52,10 +52,10 @@ router.get("/all", async (req, res) => {
         res.json(deals);
     } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
-        
+
         console.log("Error getting deals", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -74,7 +74,7 @@ router.get("/player/:address", async (req, res) => {
         }
     } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
         console.error("Error getting deals that a player has joined in", err);
@@ -82,20 +82,20 @@ router.get("/player/:address", async (req, res) => {
     }
 });
 
-router.get("/owner/:address", async (req , res) => {
+router.get("/owner/:address", async (req, res) => {
     try {
         const parsed = addressSchema.safeParse(req.params.address);
         if (parsed.success) {
             const address = parsed.data;
-            const deals = await dealsController.getMany({owner: address}, dealModel, smartContract);
+            const deals = await dealsController.getMany({ owner: address }, dealModel, smartContract);
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            res.status(400).json({message: error});
+            res.status(400).json({ message: error });
         }
-    } catch(err) {
+    } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
         console.error("Error getting deals that user has created", err);
@@ -103,13 +103,13 @@ router.get("/owner/:address", async (req , res) => {
     }
 })
 
-router.get("/featured", async (req , res) => {
+router.get("/featured", async (req, res) => {
     try {
-        const deals = await dealsController.getMany({featured: true}, dealModel, smartContract);
+        const deals = await dealsController.getMany({ featured: true }, dealModel, smartContract);
         res.json(deals);
-    } catch(err) {
+    } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
         console.error("Error getting deals that a player has joined in", err);
@@ -126,7 +126,7 @@ router.post("/activate", async (req, res) => {
             res.status(201).json({ message: "Deal marked as activated" })
         } else {
             const errors = parsed.error.issues[0].message;
-            res.status(400).json({message: errors});
+            res.status(400).json({ message: errors });
         }
     } catch (err) {
         if (err instanceof MyError) {
@@ -135,6 +135,28 @@ router.post("/activate", async (req, res) => {
         }
 
         console.error("Error updating deal to activated", err);
+        res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
+    }
+});
+
+router.post("/commission", async (req, res) => {
+    try {
+        const parsed = commissionSchema.safeParse(req.body);
+        if (parsed.success) {
+            const details = parsed.data;
+            await dealsController.storeCommission(details.dealID, details.transaction_hash, dealModel, smartContract);
+            res.status(201).json({ message: "Deal commission paid" })
+        } else {
+            const errors = parsed.error.issues[0].message;
+            res.status(400).json({ message: errors });
+        }
+    } catch (err) {
+        if (err instanceof MyError) {
+            res.status(400).json({ message: err.message });
+            return;
+        }
+
+        console.error("Error updating deal to commission paid", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
 })
@@ -174,7 +196,7 @@ router.post("/join", async (req, res) => {
         }
     } catch (err) {
         if (err instanceof MyError) {
-            res.status(400).json({message: err.message});
+            res.status(400).json({ message: err.message });
             return;
         }
         console.error("Error joining deal at endpoint", err);

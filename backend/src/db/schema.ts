@@ -14,13 +14,14 @@ export const dealsTable = pgTable("deals", {
     endDate: timestamp("endDate").notNull(),
     creationTxHash: text("creationTransactionHash"),
     chain: text("chain").notNull(),
-    activated: boolean("dealActivated").default(false).notNull(),
     activationTxHash: text("activationTransactionHash"),
     creationDate: timestamp("creationDate").defaultNow().notNull(),
     activationDate: timestamp("activationDate"),
     endDealTx: text("endDealTransactionHash"),
     done: boolean("done").default(false).notNull(),
-    description: text("description")
+    description: text("description"),
+    commissionTxHash: text("commissionTransactionHash"),
+    commissionDate: timestamp("commissionDate"),
 }, (table) => [
     check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
 ]);

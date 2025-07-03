@@ -6,7 +6,7 @@ import "dotenv/config";
 import ABI from "../../abi.json";
 import COINABI from "../../coin.json";
 import { DealDetails } from "../controller/deals";
-import { decodedTransactionSchema } from "../types";
+import { decodedTransactionSchema, TokenPrice, tokenPriceSchema } from "../types";
 import { Errors } from "../errors/messages";
 const abi = ABI.abi;
 
@@ -28,8 +28,11 @@ interface TokenDetails {
     name: string,
     symbol: string,
     decimals: number,
-    logoURL: string | null
+    logoURL: string | null,
+    price: number,
 }
+
+const COMMISSION = 0.1;
 
 export class SmartContract {
     alchemy: Alchemy
@@ -51,6 +54,22 @@ export class SmartContract {
         }
     }
 
+    async getAPIKey(): Promise<string> {
+        try {
+            if (!process.env.ALCHEMY_KEY) {
+                throw new MyError("Set ALCHEMY_KEY in env variables");
+            }
+
+            return process.env.ALCHEMY_KEY;
+        } catch (err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+            console.error("Error getting API key", err);
+            throw new Error("Error getting API key");
+        }
+    }
+
     async getTokenDetails(address: string): Promise<TokenDetails | null> {
         try {
             const isValid = this.isValidAddress(address);
@@ -60,16 +79,30 @@ export class SmartContract {
 
             const metadata = await this.alchemy.core.getTokenMetadata(address);
             if (metadata.name && metadata.symbol && metadata.decimals) {
+                const tokenPriceData = await this.getTokenPrice(metadata.symbol);
+                let price = 0;
+
+                for (const d of tokenPriceData.data) {
+                    if (d.symbol === metadata.symbol) {
+                        for (const p of d.prices) {
+                            if (p.currency === "usd") {
+                                price = p.value;
+                            }
+                        }
+                    }
+                }
+
                 return {
                     name: metadata.name,
                     symbol: metadata.symbol,
                     decimals: metadata.decimals,
-                    logoURL: metadata.logo
+                    logoURL: metadata.logo,
+                    price
                 }
             } else {
                 return null;
             }
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -81,6 +114,29 @@ export class SmartContract {
             }
 
             console.error("Error getting token details", err);
+            throw new Error("Error getting token details");
+        }
+    }
+
+    async getTokenPrice(symbol: string): Promise<TokenPrice> {
+        try {
+            const apiKey = await this.getAPIKey();
+            const resp = await fetch(`https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/by-symbol?symbols=${symbol}`);
+
+            if (resp.status !== 200) {
+                throw new Error("Could not get details from server");
+            }
+
+            const returned = await resp.json();
+            const parsed = tokenPriceSchema.safeParse(returned);
+            if (parsed.success) {
+                return parsed.data;
+            } else {
+                console.error("Error parsing returned data", parsed.error.issues);
+                throw new Error("Could not interpret data sent by server");
+            }
+        } catch (err) {
+            console.error("Erorr getting token price", err);
             throw new Error("Error getting token details");
         }
     }
@@ -275,9 +331,9 @@ export class SmartContract {
         }
     }
 
-    async verifyActivateTransaction(deal: DealDetails, txHash: string): Promise<boolean> {
+    async verifyTransaction(deal: DealDetails, txHash: string, isActivate: boolean): Promise<boolean> {
         try {
-            if(!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
+            if (!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
                 throw new Error("Set RPC_URL and CONTRACT_ADDRESS in env file");
             }
 
@@ -296,12 +352,15 @@ export class SmartContract {
                 },
                 body: JSON.stringify(body)
             });
-            
+
+            const resBody = await result.json();
+
             if (!result.ok) {
+                console.log(resBody);
                 throw new Error("Could not get details of transaction");
             }
-            const resBody = await result.json();
             
+
             const parsed = decodedTransactionSchema.safeParse(resBody);
             if (parsed.success) {
                 const transaction = parsed.data.result;
@@ -320,8 +379,14 @@ export class SmartContract {
                     const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
                     const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
                     if (metadata.decimals) {
-                        const expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
-                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
+                        let expectedAmount: bigint;
+                        if (isActivate) {
+                            expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
+                        } else {
+                            expectedAmount = BigInt(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.COMMISSION_ACCOUNT.toLowerCase();
+                        }
                     } else {
                         throw new Error("Error getting decimals of coin");
                     }

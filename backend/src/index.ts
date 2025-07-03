@@ -8,7 +8,7 @@ import dealsRouter from "./routes/deal";
 import tokensRouter from "./routes/token";
 
 const app = Express();
-app.use("/", cors());
+app.use(cors());
 app.use("/", Express.json());
 app.use("/deals", dealsRouter);
 app.use("/tokens", tokensRouter);
