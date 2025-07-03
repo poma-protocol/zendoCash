@@ -6,7 +6,7 @@ import "dotenv/config";
 import ABI from "../../abi.json";
 import COINABI from "../../coin.json";
 import { DealDetails } from "../controller/deals";
-import { decodedTransactionSchema } from "../types";
+import { decodedTransactionSchema, TokenPrice, tokenPriceSchema } from "../types";
 import { Errors } from "../errors/messages";
 const abi = ABI.abi;
 
@@ -28,7 +28,8 @@ interface TokenDetails {
     name: string,
     symbol: string,
     decimals: number,
-    logoURL: string | null
+    logoURL: string | null,
+    price: number,
 }
 
 export class SmartContract {
@@ -51,6 +52,22 @@ export class SmartContract {
         }
     }
 
+    async getAPIKey(): Promise<string> {
+        try {
+            if (!process.env.ALCHEMY_KEY) {
+                throw new MyError("Set ALCHEMY_KEY in env variables");
+            }
+
+            return process.env.ALCHEMY_KEY;
+        } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+            console.error("Error getting API key", err);
+            throw new Error("Error getting API key");
+        }
+    }
+
     async getTokenDetails(address: string): Promise<TokenDetails | null> {
         try {
             const isValid = this.isValidAddress(address);
@@ -60,11 +77,25 @@ export class SmartContract {
 
             const metadata = await this.alchemy.core.getTokenMetadata(address);
             if (metadata.name && metadata.symbol && metadata.decimals) {
+                const tokenPriceData = await this.getTokenPrice(metadata.symbol);
+                let price = 0;
+
+                for (const d of tokenPriceData.data) {
+                    if (d.symbol === metadata.symbol) {
+                        for (const p of d.prices) {
+                            if (p.currency === "usd") {
+                                price = p.value;
+                            }
+                        }
+                    }
+                }
+
                 return {
                     name: metadata.name,
                     symbol: metadata.symbol,
                     decimals: metadata.decimals,
-                    logoURL: metadata.logo
+                    logoURL: metadata.logo,
+                    price
                 }
             } else {
                 return null;
@@ -81,6 +112,29 @@ export class SmartContract {
             }
 
             console.error("Error getting token details", err);
+            throw new Error("Error getting token details");
+        }
+    }
+
+    async getTokenPrice(symbol: string): Promise<TokenPrice> {
+        try {
+            const apiKey = await this.getAPIKey();
+            const resp = await fetch(`https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/by-symbol?symbols=${symbol}`);
+
+            if (resp.status !== 200) {
+                throw new Error("Could not get details from server");
+            }
+
+            const returned = await resp.json();
+            const parsed = tokenPriceSchema.safeParse(returned);
+            if (parsed.success) {
+                return parsed.data;
+            } else {
+                console.error("Error parsing returned data", parsed.error.issues);
+                throw new Error("Could not interpret data sent by server");
+            }
+        } catch(err) {
+            console.error("Erorr getting token price", err);
             throw new Error("Error getting token details");
         }
     }

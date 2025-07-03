@@ -38,3 +38,17 @@ export const decodedTransactionSchema = z.object({
         to: z.string()
     })
 });
+
+const tokenPrice = z.object({
+    symbol: z.string(),
+    prices: z.array(z.object({
+        currency: z.string(),
+        value: z.string().transform((arg) => Number.parseFloat(arg))
+    }))
+})
+
+export const tokenPriceSchema = z.object({
+    data: z.array(tokenPrice)
+});
+
+export type TokenPrice = z.infer<typeof tokenPriceSchema>;
