@@ -1,11 +1,10 @@
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
-import smartContract from "../smartContract";
 
 interface RawDealDetails {
     id: number;
@@ -23,6 +22,8 @@ interface RawDealDetails {
     description: string | null;
     creationDate: Date;
     activationDate: Date | null;
+    commissionPaid: boolean;
+    commissionDate: Date | null;
 }
 
 export class DealsModel {
@@ -89,10 +90,12 @@ export class DealsModel {
                 endDate: dealsTable.endDate,
                 creationTxHash: dealsTable.creationTxHash,
                 chain: dealsTable.chain,
-                activated: dealsTable.activated,
                 creationDate: dealsTable.creationDate,
                 activationDate: dealsTable.activationDate,
                 description: dealsTable.description,
+                activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                commissionDate: dealsTable.commissionDate,
             }).from(dealsTable).where(eq(dealsTable.id, id));
 
             const deal = deals[0] ?? null;
@@ -155,9 +158,11 @@ export class DealsModel {
                     endDate: dealsTable.endDate,
                     creationTxHash: dealsTable.creationTxHash,
                     chain: dealsTable.chain,
-                    activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
+                    activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                    commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                    commissionDate: dealsTable.commissionDate,
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress.toLowerCase()));
             } else if (args.playerAddress) {
                 deals = await db.select({
@@ -173,10 +178,12 @@ export class DealsModel {
                     endDate: dealsTable.endDate,
                     creationTxHash: dealsTable.creationTxHash,
                     chain: dealsTable.chain,
-                    activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
-                    done: sql<boolean>`${userDealsTable.rewardSentTxHash} IS NOT NULL`
+                    done: sql<boolean>`${userDealsTable.rewardSentTxHash} IS NOT NULL`,
+                    activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                    commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                    commissionDate: dealsTable.commissionDate,
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress.toLowerCase()));
@@ -194,9 +201,11 @@ export class DealsModel {
                     endDate: dealsTable.endDate,
                     creationTxHash: dealsTable.creationTxHash,
                     chain: dealsTable.chain,
-                    activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
+                    activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                    commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                    commissionDate: dealsTable.commissionDate,
                 }).from(dealsTable).where(eq(dealsTable.coin_owner_address, args.owner.toLowerCase()));
             } else if (args.featured === true) {
                 const today = new Date();
@@ -214,11 +223,13 @@ export class DealsModel {
                     endDate: dealsTable.endDate,
                     creationTxHash: dealsTable.creationTxHash,
                     chain: dealsTable.chain,
-                    activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
                     activationDate: dealsTable.activationDate,
+                    activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                    commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                    commissionDate: dealsTable.commissionDate,
                 }).from(dealsTable)
-                    .where(and(gt(dealsTable.endDate, today), eq(dealsTable.activated, true)))
+                    .where(and(gt(dealsTable.endDate, today), isNotNull(dealsTable.activationTxHash)))
                     .orderBy(desc(dealsTable.id))
                     .limit(3);
             } else {
@@ -235,9 +246,11 @@ export class DealsModel {
                     endDate: dealsTable.endDate,
                     creationTxHash: dealsTable.creationTxHash,
                     chain: dealsTable.chain,
-                    activated: dealsTable.activated,
                     creationDate: dealsTable.creationDate,
-                    activationDate: dealsTable.activationDate
+                    activationDate: dealsTable.activationDate,
+                    activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                    commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                    commissionDate: dealsTable.commissionDate,
                 }).from(dealsTable);
             }
 
@@ -287,13 +300,24 @@ export class DealsModel {
     async markDealActivatedInDB(dealID: number, txn: string) {
         try {
             await db.update(dealsTable).set({
-                activated: true,
                 activationDate: new Date(),
                 activationTxHash: txn.toLowerCase(),
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
             console.error("Error marking deal as activated in DB", err);
             throw new Error("Error marking deals as activated");
+        }
+    }
+
+    async markCommissionPaid(dealID: number, txn: string) {
+        try {
+            await db.update(dealsTable).set({
+                commissionDate: new Date(),
+                commissionTxHash: txn.toLowerCase()
+            }).where(eq(dealsTable.id, dealID));
+        } catch (err) {
+            console.error("Error marking commission as paid", err);
+            throw new Error("Could not mark commission as paid");
         }
     }
 
@@ -363,10 +387,24 @@ export class DealsModel {
             }).from(dealsTable)
                 .where(eq(dealsTable.activationTxHash, txHash.toLowerCase()));
 
-            return results.length !== 0;
+            return results.length > 0;
         } catch (err) {
             console.error("Error checking if activation transaction has been used before", err);
             throw new Error("Error checking if activation transaction hash has been used");
+        }
+    }
+
+    async hasCommissinTransactionBeenUsed(txHash: string): Promise<boolean> {
+        try {
+            const results = await db.select({
+                id: dealsTable.id
+            }).from(dealsTable)
+                .where(eq(dealsTable.commissionTxHash, txHash.toLowerCase()));
+
+            return results.length > 0;
+        } catch (err) {
+            console.error("Error checking if commission transaction has been used", err);
+            throw new Error("Could not check if commission transaction has been used");
         }
     }
 }

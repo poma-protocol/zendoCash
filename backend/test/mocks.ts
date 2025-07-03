@@ -15,7 +15,10 @@ export const smartContractMock = {
     updateCount: jest.fn(),
     getAccount: jest.fn(),
     activate: jest.fn(),
-    verifyActivateTransaction: jest.fn()
+    verifyTransaction: jest.fn(),
+    getTokenPrice: jest.fn(),
+    getTokenDetails: jest.fn(),
+    getAPIKey: jest.fn()
 } as SmartContract
 
 export const dealsModelMock = {
@@ -27,7 +30,8 @@ export const dealsModelMock = {
     updateDBAndContractOnJoin: jest.fn(),
     markDealEnded: jest.fn(),
     resetCount: jest.fn(),
-    hasActivationTransactionBeenUsed: jest.fn()
+    hasActivationTransactionBeenUsed: jest.fn(),
+    hasCommissinTransactionBeenUsed: jest.fn()
 } as DealsModel
 
 export const dealsControllerMock = {
@@ -39,5 +43,6 @@ export const dealsControllerMock = {
     create: jest.fn(),
     markEnded: jest.fn(),
     resetCount: jest.fn(),
+    storeCommission: jest.fn(),
     updateCount: jest.fn()
 } as DealsController

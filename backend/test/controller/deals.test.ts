@@ -44,16 +44,18 @@ describe("Deal Controller Tests", () => {
         endDate: tomorrow,
         creationTxHash: validTransactionHash,
         chain: "arbitrum",
-        activated: false,
+        activated: true,
         creationDate: today,
-        activationDate: null,
+        activationDate: today,
         players: [],
         total_players: 0,
         rewarded_players: 0,
         tokenLogo: "",
         tokenName: "",
         tokenSymbol: "",
-        tokenPrice: 0
+        tokenPrice: 0,
+        commissionDate: today,
+        commissionPaid: true
     }
 
     const joinArgs = {
@@ -112,7 +114,7 @@ describe("Deal Controller Tests", () => {
             })
         });
 
-        smartContractMock.verifyActivateTransaction = jest.fn().mockImplementation((deal: DealDetails, txHash: string) => {
+        smartContractMock.verifyTransaction = jest.fn().mockImplementation((deal: DealDetails, txHash: string, isActivate: boolean) => {
             return new Promise((res, rej) => {
                 if (txHash === validTransactionHash && deal.id === createdDealID) {
                     res(true);

@@ -13,5 +13,7 @@ export enum Errors {
     COIN_NOT_EXIST = "Coin does not exist",
     DEAL_NOT_YET_STARTED="Deal has not yet started",
     DEAL_ENDED="Deal has ended",
+    DEAL_NOT_COMMISSION="Deal has not been paid for commission",
+    DEAL_NOT_ACTIVATED="Deal has not been activated",
     INTERNAL_SERVER_ERROR="Internal server error"
 }

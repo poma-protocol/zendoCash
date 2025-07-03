@@ -5,7 +5,8 @@ import { CreateDealsType, JoinSchemaType } from "../types";
 import { DealsModel } from "../model/deals";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
+import smartContract from "../smartContract";
 
 export interface DealDetails {
     id: number,
@@ -29,7 +30,9 @@ export interface DealDetails {
     done?: boolean,
     players: string[],
     total_players: number,
-    rewarded_players: number
+    rewarded_players: number,
+    commissionPaid: boolean;
+    commissionDate: Date | null;
 }
 
 export interface GetManyArgs {
@@ -55,6 +58,9 @@ export interface MainFunctionDeals {
     endDate: Date,
     players: Player[]
 }
+
+const COMMISSION = 0.1;
+
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
         try {
@@ -167,12 +173,16 @@ export class DealsController {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
             }
 
+            if (deal.commissionPaid === false) {
+                throw new MyError(Errors.DEAL_NOT_COMMISSION);
+            }
+
             const hasTransactionBeenUsed = await dealsModel.hasActivationTransactionBeenUsed(txHash);
             if (hasTransactionBeenUsed === true) {
                 throw new MyError(Errors.TRANSACTION_USED_BEFORE);
             }
 
-            const isTransactionValid = await smartcontract.verifyActivateTransaction(deal, txHash);
+            const isTransactionValid = await smartcontract.verifyTransaction(deal, txHash, true);
             if (!isTransactionValid) {
                 throw new MyError(Errors.INVALID_TRANSACTION_HASH);
             }
@@ -190,6 +200,35 @@ export class DealsController {
         }
     }
 
+    async storeCommission(dealID: number, txHash: string, dealsModel: DealsModel, smarcontract: SmartContract) {
+        try {
+            // Check if deal exists
+            const deal = await dealsModel.get(dealID, smarcontract);
+            if (!deal) {
+                throw new MyError(Errors.DEAL_DOES_NOT_EXIST)
+            }
+
+            const hasCommissionTransactionBeenUsed = await dealsModel.hasCommissinTransactionBeenUsed(txHash);
+            if (hasCommissionTransactionBeenUsed === true) {
+                throw new MyError(Errors.TRANSACTION_USED_BEFORE);
+            }
+
+            const isTransactionValid = await smartContract.verifyTransaction(deal, txHash, false);
+            if (!isTransactionValid) {
+                throw new MyError(Errors.INVALID_TRANSACTION_HASH);
+            }
+
+            await dealsModel.markCommissionPaid(dealID, txHash);
+        } catch(err) {
+            if (err instanceof MyError) {
+                throw err;
+            }
+
+            console.error("Could not store commission", err);
+            throw new Error("Error storing commission");
+        }
+    }
+
     // Returns whether or not the user had the required amount of coin when joining the deal
     async join(args: JoinSchemaType, smartContract: SmartContract, dealModel: DealsModel): Promise<boolean> {
         try {
@@ -203,6 +242,10 @@ export class DealsController {
             const deal = await dealModel.get(args.deal_id, smartContract);
             if (deal === null) {
                 throw new MyError(Errors.DEAL_DOES_NOT_EXIST);
+            }
+
+            if (deal.activated === false || deal.commissionPaid === false) {
+                throw new MyError(Errors.DEAL_NOT_ACTIVATED);
             }
 
             const hasUserJoined = await dealModel.hasUserJoinedDeal(args.deal_id, args.address);
@@ -241,7 +284,7 @@ export class DealsController {
                 minDaysHold: dealsTable.miniumum_days_to_hold,
                 max_rewards: dealsTable.max_rewards,
                 endDate: dealsTable.endDate
-            }).from(dealsTable).where(and(eq(dealsTable.done, false), eq(dealsTable.activated, true)));
+            }).from(dealsTable).where(and(eq(dealsTable.done, false), isNotNull(dealsTable.activationTxHash)));
 
             const deals: MainFunctionDeals[] = [];
             for await (const deal of dealResults) {

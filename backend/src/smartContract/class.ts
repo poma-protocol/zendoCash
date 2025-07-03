@@ -32,6 +32,8 @@ interface TokenDetails {
     price: number,
 }
 
+const COMMISSION = 0.1;
+
 export class SmartContract {
     alchemy: Alchemy
     web3: Web3
@@ -59,7 +61,7 @@ export class SmartContract {
             }
 
             return process.env.ALCHEMY_KEY;
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -100,7 +102,7 @@ export class SmartContract {
             } else {
                 return null;
             }
-        } catch(err) {
+        } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
@@ -133,7 +135,7 @@ export class SmartContract {
                 console.error("Error parsing returned data", parsed.error.issues);
                 throw new Error("Could not interpret data sent by server");
             }
-        } catch(err) {
+        } catch (err) {
             console.error("Erorr getting token price", err);
             throw new Error("Error getting token details");
         }
@@ -329,9 +331,9 @@ export class SmartContract {
         }
     }
 
-    async verifyActivateTransaction(deal: DealDetails, txHash: string): Promise<boolean> {
+    async verifyTransaction(deal: DealDetails, txHash: string, isActivate: boolean): Promise<boolean> {
         try {
-            if(!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
+            if (!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
                 throw new Error("Set RPC_URL and CONTRACT_ADDRESS in env file");
             }
 
@@ -350,12 +352,12 @@ export class SmartContract {
                 },
                 body: JSON.stringify(body)
             });
-            
+
             if (!result.ok) {
                 throw new Error("Could not get details of transaction");
             }
             const resBody = await result.json();
-            
+
             const parsed = decodedTransactionSchema.safeParse(resBody);
             if (parsed.success) {
                 const transaction = parsed.data.result;
@@ -374,7 +376,14 @@ export class SmartContract {
                     const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
                     const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
                     if (metadata.decimals) {
-                        const expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                        let expectedAmount: bigint;
+                        if (isActivate) {
+                            expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                        } else {
+                            expectedAmount = BigInt(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals));
+                        }
+
+
                         return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                     } else {
                         throw new Error("Error getting decimals of coin");
