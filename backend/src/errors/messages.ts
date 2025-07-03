@@ -11,5 +11,7 @@ export enum Errors {
     INVALID_TRANSACTION_HASH="Transaction needs to have the correct reward amount sent and to the correct contract address",
     TRANSACTION_USED_BEFORE="Activation transaction has been used before",
     COIN_NOT_EXIST = "Coin does not exist",
+    DEAL_NOT_YET_STARTED="Deal has not yet started",
+    DEAL_ENDED="Deal has ended",
     INTERNAL_SERVER_ERROR="Internal server error"
 }

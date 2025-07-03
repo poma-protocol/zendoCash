@@ -192,6 +192,8 @@ export class DealsController {
     // Returns whether or not the user had the required amount of coin when joining the deal
     async join(args: JoinSchemaType, smartContract: SmartContract, dealModel: DealsModel): Promise<boolean> {
         try {
+            const today = new Date();
+
             const isValidAddress = smartContract.isValidAddress(args.address);
             if (!isValidAddress) {
                 throw new MyError(Errors.INVALID_ADDRESS);
@@ -205,6 +207,15 @@ export class DealsController {
             const hasUserJoined = await dealModel.hasUserJoinedDeal(args.deal_id, args.address);
             if (hasUserJoined === true) {
                 throw new MyError(Errors.ALREADY_JOINED);
+            }
+
+            // Check if end date has passed
+            if (today < deal.start_date) {
+                throw new MyError(Errors.DEAL_NOT_YET_STARTED);
+            }
+
+            if (today > deal.endDate) {
+                throw new MyError(Errors.DEAL_ENDED);
             }
 
             const hasBalance = await smartContract.doesUserHaveBalance(args.address, deal.contract_address, deal.reward);

@@ -19,6 +19,8 @@ describe("Deal Controller Tests", () => {
     tomorrow.setDate(today.getDate() + 1);
 
     const createdDealID = 100;
+    const futureDeal = 2;
+    const pastDeal = 3;
 
     const createArgs = {
         name: "Test",
@@ -47,7 +49,10 @@ describe("Deal Controller Tests", () => {
         activationDate: null,
         players: [],
         total_players: 0,
-        rewarded_players: 0
+        rewarded_players: 0,
+        tokenLogo: "",
+        tokenName: "",
+        tokenSymbol: "",
     }
 
     const joinArgs = {
@@ -82,8 +87,14 @@ describe("Deal Controller Tests", () => {
 
         dealsModelMock.get = jest.fn().mockImplementation((id: number) => {
             return new Promise((res, rej) => {
-                if (id === createdDealID) {
-                    res(createdDealDetails);
+                if (id === createdDealID || id === futureDeal || id === pastDeal) {
+                    if (id === createdDealID) {
+                        res(createdDealDetails);
+                    } else if (id === futureDeal) {
+                        res({ ...createdDealDetails, start_date: tomorrow });
+                    } else {
+                        res({ ...createdDealDetails, endDate: today })
+                    }
                 } else {
                     res(null);
                 }
@@ -301,6 +312,40 @@ describe("Deal Controller Tests", () => {
                 expect(false).toBe(true);
             }
         });
+
+        it("should fail if the start date hasn't reached", async () => {
+            try {
+                await testDealController.join({ ...joinArgs, deal_id: futureDeal }, smartContractMock, dealsModelMock);
+                expect(false).toBe(true);
+            } catch (err) {
+                if (err instanceof MyError) {
+                    if (err.message === Errors.DEAL_NOT_YET_STARTED) {
+                        expect(true).toBe(true);
+                        return;
+                    }
+
+                }
+                console.log("Unknown err", err);
+                expect(false).toBe(true);
+            }
+        });
+
+        it("should fail if the end date has passed", async () => {
+            try {
+                await testDealController.join({ ...joinArgs, deal_id: pastDeal }, smartContractMock, dealsModelMock);
+                expect(false).toBe(true);
+            } catch (err) {
+                if (err instanceof MyError) {
+                    if (err.message === Errors.DEAL_ENDED) {
+                        expect(true).toBe(true);
+                        return;
+                    }
+                }
+
+                console.log("Unknown err", err);
+                expect(false).toBe(true);
+            }
+        })
 
         it("should return false and set counter to 0 if user does not have required coins", async () => {
             try {
