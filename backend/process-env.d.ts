@@ -7,6 +7,7 @@ declare global {
             ALCHEMY_KEY: string,
             CONTRACT_ADDRESS: string,
             PRIVATE_KEY: string,
+            COMMISSION_ACCOUNT: string,
         }
     }
 }

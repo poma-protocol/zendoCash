@@ -353,10 +353,13 @@ export class SmartContract {
                 body: JSON.stringify(body)
             });
 
+            const resBody = await result.json();
+
             if (!result.ok) {
+                console.log(resBody);
                 throw new Error("Could not get details of transaction");
             }
-            const resBody = await result.json();
+            
 
             const parsed = decodedTransactionSchema.safeParse(resBody);
             if (parsed.success) {
@@ -379,12 +382,11 @@ export class SmartContract {
                         let expectedAmount: bigint;
                         if (isActivate) {
                             expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                         } else {
                             expectedAmount = BigInt(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.COMMISSION_ACCOUNT.toLowerCase();
                         }
-
-
-                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                     } else {
                         throw new Error("Error getting decimals of coin");
                     }

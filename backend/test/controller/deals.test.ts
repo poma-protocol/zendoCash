@@ -42,6 +42,7 @@ describe("Deal Controller Tests", () => {
         max_rewards: createArgs.max_rewards_give_out,
         start_date: today,
         endDate: tomorrow,
+        description: "",
         creationTxHash: validTransactionHash,
         chain: "arbitrum",
         activated: true,
@@ -54,6 +55,7 @@ describe("Deal Controller Tests", () => {
         tokenName: "",
         tokenSymbol: "",
         tokenPrice: 0,
+        tokenDecimals: 1,
         commissionDate: today,
         commissionPaid: true
     }

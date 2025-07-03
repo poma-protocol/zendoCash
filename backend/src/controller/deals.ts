@@ -13,6 +13,8 @@ export interface DealDetails {
     tokenName: string,
     tokenSymbol: string,
     tokenLogo: string | null,
+    tokenDecimals: number,
+    description: string | null,
     tokenPrice: number,
     contract_address: string,
     minimum_amount_to_hold: number,
@@ -58,8 +60,6 @@ export interface MainFunctionDeals {
     endDate: Date,
     players: Player[]
 }
-
-const COMMISSION = 0.1;
 
 export class DealsController {
     async create(args: CreateDealsType, smartContract: SmartContract, dealModel: DealsModel): Promise<number> {
