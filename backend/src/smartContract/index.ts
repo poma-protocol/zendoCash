@@ -1,5 +1,5 @@
 import { SmartContract } from "./class";
-import {Web3} from "web3";
+import { Web3 } from "web3";
 import { Alchemy, Network } from "alchemy-sdk";
 import "dotenv/config";
 
