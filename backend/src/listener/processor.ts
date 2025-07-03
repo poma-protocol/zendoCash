@@ -6,7 +6,9 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
     try {
         // If end date for deal has passed mark deal and ended and continue
         const now = new Date();
-        if (deal.endDate <= now) {
+        const dealEndDate = new Date(deal.endDate);
+        dealEndDate.setDate(dealEndDate.getDate() + deal.minimum_days_hold);
+        if (dealEndDate <= now) {
             console.log(`DEAL ${deal.deal_id} has ended`, deal);
             await dealController.markEnded(deal.deal_id, smartContract, dealModel);
             return;
