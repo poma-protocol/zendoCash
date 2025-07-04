@@ -378,13 +378,14 @@ export class SmartContract {
                     const receivingAccount = decodedTransaction['dst'] as string;
                     const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
                     const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
+            
                     if (metadata.decimals) {
                         let expectedAmount: bigint;
                         if (isActivate) {
-                            expectedAmount = BigInt(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            expectedAmount = BigInt(Math.round(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals)));
                             return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                         } else {
-                            expectedAmount = BigInt(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals));
+                            expectedAmount = BigInt(Math.round(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals)));
                             return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.COMMISSION_ACCOUNT.toLowerCase();
                         }
                     } else {
