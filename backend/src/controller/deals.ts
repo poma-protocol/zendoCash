@@ -301,7 +301,7 @@ export class DealsController {
                     oneDayAfterJoining.setDate(p.joinTime.getDate() + 1);
                     const today = new Date();
                 
-                    if (oneDayAfterJoining < today && p.txHash !== null) {
+                    if (oneDayAfterJoining < today && p.txHash === null) {
                         return p;
                     }
                 });
@@ -387,3 +387,12 @@ export class DealsController {
 
 const dealsController = new DealsController();
 export default dealsController;
+
+(async () => {
+    const deals = await dealsController.mainFunctionDeals();
+    for (const d of deals) {
+        console.log(d);
+    }
+
+    process.exit(0);
+})()
