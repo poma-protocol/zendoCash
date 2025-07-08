@@ -4,10 +4,12 @@ declare global {
             PORT: number,
             DATABASE_URL: string,
             RPC_URL: string,
-            ALCHEMY_KEY: string,
             CONTRACT_ADDRESS: string,
-            PRIVATE_KEY: string,
             COMMISSION_ACCOUNT: string,
+            PROJECT_ID: string,
+            CLIENT_ID: string,
+            CLIENT_SECRET: string,
+            REGION: string,
         }
     }
 }
