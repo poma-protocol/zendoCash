@@ -11,6 +11,9 @@ declare global {
             CLIENT_SECRET: string,
             REGION: string,
             ENVIRONMENT: string,
+            POSTHOG_DISTINCT_ID: string,
+            POSTHOG_SECRET: string,
+            POSTHOG_URL: string,
         }
     }
 }
