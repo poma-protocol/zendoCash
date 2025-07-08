@@ -7,6 +7,8 @@ import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
 import { eq, and, isNotNull } from "drizzle-orm";
 import smartContract from "../smartContract";
+import logger, { PostHogEventTypes } from "../logging";
+import { count } from "console";
 
 export interface DealDetails {
     id: number,
@@ -101,6 +103,7 @@ export class DealsController {
                 throw err;
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error creating deal", {err, deal: args});
             console.error("Error creating deal", err);
             throw new Error("Could not create deal");
         }
@@ -119,6 +122,7 @@ export class DealsController {
                 throw err;
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Controller: Error getting deal", err);
             console.error("Error getting deal", err);
             throw new Error("Error getting deal");
         }
@@ -161,6 +165,8 @@ export class DealsController {
             if (err instanceof MyError) {
                 throw err;
             }
+
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Controller: Error getting multiple deals", err);
             console.error("Error getting mulitple deal details", err);
             throw new MyError("Error getting multiple deal details");
         }
@@ -195,6 +201,7 @@ export class DealsController {
                 throw err;
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error marking deal as activated", {deal: dealID, txHash, error: err});
             console.log("Error marking deal as activated", err);
             throw new Error("Error marking deal as activated");
         }
@@ -224,6 +231,7 @@ export class DealsController {
                 throw err;
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error storing commission for deal", {deal: dealID, txHash, error: err});
             console.error("Could not store commission", err);
             throw new Error("Error storing commission");
         }
@@ -270,6 +278,7 @@ export class DealsController {
                 throw err;
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals controller: Error joining deal", {err, deal: args.deal_id, user: args.address});
             console.error("Error joining player to deal", err);
             throw new Error("Error joining player");
         }
@@ -333,6 +342,7 @@ export class DealsController {
 
             return deals;
         } catch(err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting deals for main processor", err);
             console.error("Error getting main function deals", err);
             throw new MyError(Errors.NOT_GET_MAIN_DEALS);
         }
@@ -343,6 +353,7 @@ export class DealsController {
             const txHash = await smartcontract.markDealEnded(dealID);
             await dealModel.markDealEnded(dealID, txHash);
         } catch(err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Marking deal as ended", {error: err, deal: dealID});
             console.error("Error marking deal as ended", err);
             throw new Error("Error marking deal as ended");
         }
@@ -354,6 +365,7 @@ export class DealsController {
             // UPDATE WORX
             console.log("Not yet implemented code for updating WORX site");
         } catch(err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Eror resetting user count", {error: err, deal: dealID, user: userAddress})
             console.error("Error reseting count for user", err);
             throw new Error("Error resetting count");
         }
@@ -380,6 +392,7 @@ export class DealsController {
                 }
             });
         } catch(err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error updating user count", {error: err, deal: dealID, player: player.address, oldcount: player.count})
             console.error("Error updating count of player", err);
             throw new Error("Error updating count");
         }

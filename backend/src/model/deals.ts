@@ -5,6 +5,7 @@ import { dealsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
+import logger, { PostHogEventTypes } from "../logging";
 
 interface RawDealDetails {
     id: number;
@@ -71,6 +72,7 @@ export class DealsModel {
                 throw new Error("Could not create deal")
             }
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error creating deal in contract and storing in db", {err, deal: args})
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
@@ -136,6 +138,7 @@ export class DealsModel {
             };
             return toReturn;
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting deal", err);
             console.error("Error getting deals from database", err);
             throw new Error("Erorr getting deals from database");
         }
@@ -294,6 +297,7 @@ export class DealsModel {
 
             return toReturn;
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting multiple deals", err);
             console.error("Error getting deal details from database", err);
             throw new Error("Error getting deal details");
         }
@@ -306,6 +310,7 @@ export class DealsModel {
                 activationTxHash: txn.toLowerCase(),
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error markign deal as activated", err);
             console.error("Error marking deal as activated in DB", err);
             throw new Error("Error marking deals as activated");
         }
@@ -318,6 +323,7 @@ export class DealsModel {
                 commissionTxHash: txn.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error marking commission of deal as paid", {deal: dealID, txn, error: err})
             console.error("Error marking commission as paid", err);
             throw new Error("Could not mark commission as paid");
         }
@@ -354,6 +360,7 @@ export class DealsModel {
                 }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
             });
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error joining deal on contract and updating deal", {error: err, deal: dealID, user: address})
             console.error("Error updating db and contract", err);
             throw new Error("Error updating db and contract");
         }
@@ -377,6 +384,7 @@ export class DealsModel {
                 counter: 0
             }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress.toLowerCase())));
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error reseting user count", {error: err, deal: dealID, user: userAddress})
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
         }
@@ -392,6 +400,7 @@ export class DealsModel {
             return results.length > 0;
         } catch (err) {
             console.error("Error checking if activation transaction has been used before", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if activation transaction has been used", err);
             throw new Error("Error checking if activation transaction hash has been used");
         }
     }
@@ -405,6 +414,7 @@ export class DealsModel {
 
             return results.length > 0;
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", {txHash, error: err});
             console.error("Error checking if commission transaction has been used", err);
             throw new Error("Could not check if commission transaction has been used");
         }

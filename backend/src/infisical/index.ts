@@ -1,6 +1,7 @@
 import axios from "axios";
 import { AxiosError } from "axios";
 import "dotenv/config";
+import logger, { PostHogEventTypes } from "../logging";
 
 enum Errors {
     NOT_AUTHENTICATE = "Could not authenticate",
@@ -114,6 +115,7 @@ class Infisical {
             throw new Error(Errors.NOT_GET_SECRET);
         } catch (err) {
             if (err instanceof Error) {
+                await logger.sendEvent(PostHogEventTypes.ERROR, `Infisical: Error getting ${secret}`, err);
                 if (err.message === Errors.AUTHENTICATE_FAILED) {
                     console.log("authenticate failed contact support");
                     throw err;
@@ -126,6 +128,7 @@ class Infisical {
                 }
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, `Infisical: Error getting ${secret}`, err);
             console.log("Error getting secret", err);
             throw new Error(Errors.UNKOWN);
         }

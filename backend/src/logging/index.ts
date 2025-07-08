@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PostHog } from "posthog-node";
 
-enum PostHogEventTypes {
+export enum PostHogEventTypes {
     WARNING="warning",
     ERROR="error"
 }
@@ -30,7 +30,7 @@ class Logger {
                     properties: {
                         app: "zendocash",
                         description,
-                        details
+                        details: details.toString()
                     }
                 });
     

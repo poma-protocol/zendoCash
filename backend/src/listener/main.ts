@@ -1,4 +1,5 @@
 import dealsController from "../controller/deals";
+import logger, { PostHogEventTypes } from "../logging";
 import dealModel from "../model/deals";
 import smartContract from "../smartContract";
 import processMainDeal from "./processor";
@@ -17,6 +18,7 @@ export default async function main() {
             await processMainDeal(deal, dealsController, smartContract, dealModel);
         }
     } catch (err) {
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Main Processor: Error processing deals", {error: err, time: new Date().toISOString()});
         console.error("Error occured in the listener", err);
     }
 }

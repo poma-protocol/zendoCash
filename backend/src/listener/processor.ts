@@ -1,4 +1,5 @@
 import { DealsController, MainFunctionDeals } from "../controller/deals";
+import logger, { PostHogEventTypes } from "../logging";
 import { DealsModel } from "../model/deals";
 import { SmartContract } from "../smartContract/class";
 
@@ -39,6 +40,7 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
             // Else do nothing
         }
     } catch (err) {
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Deal Processor: Error processing deal", {error: err, deal: deal.deal_id})
         console.error("Error processing main deal", err);
     }
 }
