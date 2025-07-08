@@ -387,12 +387,3 @@ export class DealsController {
 
 const dealsController = new DealsController();
 export default dealsController;
-
-(async () => {
-    const deals = await dealsController.mainFunctionDeals();
-    for (const d of deals) {
-        console.log(d);
-    }
-
-    process.exit(0);
-})()
