@@ -364,7 +364,8 @@ export class DealsController {
             await db.transaction(async (tx) => {
                 const updatedCount = player.count++;
                 await tx.update(userDealsTable).set({
-                    counter: updatedCount
+                    counter: updatedCount,
+                    lastCountUpdateTime: new Date(),
                 }).where(and(eq(userDealsTable.userAddress, player.address), eq(userDealsTable.dealID, dealID)));
 
                 if (updatedCount >= minumumDaysHold) {
