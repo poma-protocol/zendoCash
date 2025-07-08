@@ -10,6 +10,7 @@ declare global {
             CLIENT_ID: string,
             CLIENT_SECRET: string,
             REGION: string,
+            ENVIRONMENT: string,
         }
     }
 }

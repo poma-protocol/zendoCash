@@ -1,4 +1,4 @@
-import { Alchemy } from "alchemy-sdk";
+import { Alchemy, Network } from "alchemy-sdk";
 import { MyError } from "../errors/type";
 import { isAddress } from "web3-validator";
 import Web3, { Web3Account } from "web3";
@@ -8,6 +8,7 @@ import COINABI from "../../coin.json";
 import { DealDetails } from "../controller/deals";
 import { decodedTransactionSchema, TokenPrice, tokenPriceSchema } from "../types";
 import { Errors } from "../errors/messages";
+import infisical from "../infisical";
 const abi = ABI.abi;
 
 
@@ -35,18 +36,44 @@ interface TokenDetails {
 const COMMISSION = 0.1;
 
 export class SmartContract {
-    alchemy: Alchemy
-    web3: Web3
-
-    constructor(alchemy: Alchemy, web3: Web3) {
-        this.alchemy = alchemy;
-        this.web3 = web3;
+    constructor() {
+        if (!process.env.ENVIRONMENT) {
+            throw new Error("Not set up ENVIRONMENT in env variables");
+        }
     }
+
+    async getRPCURL(): Promise<string> {
+        try {
+            const rpcURL = await infisical.getSecret("RPC_URL", process.env.ENVIRONMENT);
+            return rpcURL;
+        } catch(err) {
+            console.error("Error getting RPC URL", err);
+            
+            if (!process.env.RPC_URL) {
+                throw new Error("Backup RPC URL not set in env");
+            }
+
+            return process.env.RPC_URL;
+        }
+    }
+
+    async getWeb3(): Promise<Web3> {
+        try {
+            const rpcURL = await this.getRPCURL();
+            return new Web3(rpcURL);
+        } catch(err) {
+            console.error("Error getting web3", err);
+            throw new Error("Error getting web3");
+        }
+    }
+
 
     async getAccount(): Promise<Web3Account> {
         try {
-            // const privateKey = await infisical.getSecret("PRIVATE_KEY", process.env.INFISICAL_ENVIRONMENT);
-            const account = this.web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
+            const web3 = await this.getWeb3();
+
+            const privateKey = await infisical.getSecret("PRIVATE_KEY", process.env.ENVIRONMENT);
+            const account = web3.eth.accounts.privateKeyToAccount(privateKey);
             return account;
         } catch (err) {
             console.log("Error getting account", err);
@@ -56,17 +83,38 @@ export class SmartContract {
 
     async getAPIKey(): Promise<string> {
         try {
-            if (!process.env.ALCHEMY_KEY) {
-                throw new MyError("Set ALCHEMY_KEY in env variables");
-            }
-
-            return process.env.ALCHEMY_KEY;
+            const alchemyKey = await infisical.getSecret("ALCHEMY_KEY", process.env.ENVIRONMENT);
+            return alchemyKey;
         } catch (err) {
             if (err instanceof MyError) {
                 throw err;
             }
             console.error("Error getting API key", err);
             throw new Error("Error getting API key");
+        }
+    }
+
+    async getAlchemy(): Promise<Alchemy> {
+        try {
+            const alchemyKey = await this.getAPIKey();
+            
+            if (process.env.ENVIRONMENT === "staging") {
+                const alchemy = new Alchemy({
+                    apiKey: alchemyKey,
+                    network: Network.ARB_SEPOLIA
+                });
+
+                return alchemy;
+            } else {
+                const alchemy = new Alchemy({
+                    apiKey: alchemyKey,
+                    network: Network.ARB_MAINNET
+                });
+                return alchemy;
+            }
+        } catch(err) {
+            console.log("Error getting alchemy", err);
+            throw new Error("Error getting alchemy");
         }
     }
 
@@ -77,7 +125,8 @@ export class SmartContract {
                 throw new MyError(Errors.INVALID_ADDRESS);
             }
 
-            const metadata = await this.alchemy.core.getTokenMetadata(address);
+            const alchemy = await this.getAlchemy();
+            const metadata = await alchemy.core.getTokenMetadata(address);
             if (metadata.name && metadata.symbol && metadata.decimals) {
                 const tokenPriceData = await this.getTokenPrice(metadata.symbol);
                 let price = 0;
@@ -152,14 +201,16 @@ export class SmartContract {
 
     async createDeal(args: CreateDealsInSmartContract): Promise<string> {
         try {
-            const metadata = await this.alchemy.core.getTokenMetadata(args.contract_address);
+            const alchemy = await this.getAlchemy();
+            const metadata = await alchemy.core.getTokenMetadata(args.contract_address);
             if (metadata.decimals) {
                 const processedReward = BigInt((args.maxParticipants * args.reward) * Math.pow(10, metadata.decimals));
                 const goal = BigInt(args.minimum_amount_to_hold * Math.pow(10, metadata.decimals));
 
-                const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+                const web3 = await this.getWeb3();
+                const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
                 const account = await this.getAccount();
-                const block = await this.web3.eth.getBlock();
+                const block = await web3.eth.getBlock();
 
                 const transaction = {
                     from: account.address,
@@ -179,11 +230,11 @@ export class SmartContract {
                     maxFeePerGas: block.baseFeePerGas! * 2n,
                     maxPriorityFeePerGas: 100000,
                 };
-                const signedTransaction = await this.web3.eth.accounts.signTransaction(
+                const signedTransaction = await web3.eth.accounts.signTransaction(
                     transaction,
                     account.privateKey,
                 );
-                const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+                const receipt = await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
 
                 return receipt.transactionHash.toString();
             } else {
@@ -197,10 +248,11 @@ export class SmartContract {
 
     async doesUserHaveBalance(address: string, coinAddress: string, balance: number): Promise<boolean> {
         try {
-            const data = await this.alchemy.core.getTokenBalances(address, [coinAddress]);
+            const alchemy = await this.getAlchemy();
+            const data = await alchemy.core.getTokenBalances(address, [coinAddress]);
             const rawBalance = data.tokenBalances[0].tokenBalance;
             if (rawBalance) {
-                const metadata = await this.alchemy.core.getTokenMetadata(coinAddress);
+                const metadata = await alchemy.core.getTokenMetadata(coinAddress);
                 if (metadata.decimals) {
                     const processedBalance = Number.parseInt(rawBalance) / Math.pow(10, metadata.decimals)
                     return processedBalance >= balance;
@@ -220,9 +272,10 @@ export class SmartContract {
 
     async activate(dealID: number) {
         try {
-            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const web3 = await this.getWeb3();
+            const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
-            const block = await this.web3.eth.getBlock();
+            const block = await web3.eth.getBlock();
 
             const transaction = {
                 from: account.address,
@@ -233,11 +286,11 @@ export class SmartContract {
                 maxFeePerGas: block.baseFeePerGas! * 2n,
                 maxPriorityFeePerGas: 100000,
             };
-            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+            const signedTransaction = await web3.eth.accounts.signTransaction(
                 transaction,
                 account.privateKey,
             );
-            await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+            await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
         } catch (err) {
             console.error("Error activating deal", err);
             throw new Error("Error activating deal");
@@ -246,9 +299,10 @@ export class SmartContract {
 
     async join(dealID: number, address: string): Promise<string> {
         try {
-            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const web3 = await this.getWeb3();
+            const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
-            const block = await this.web3.eth.getBlock();
+            const block = await web3.eth.getBlock();
 
             const transaction = {
                 from: account.address,
@@ -260,11 +314,11 @@ export class SmartContract {
                 maxFeePerGas: block.baseFeePerGas! * 2n,
                 maxPriorityFeePerGas: 100000,
             };
-            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+            const signedTransaction = await web3.eth.accounts.signTransaction(
                 transaction,
                 account.privateKey,
             );
-            const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+            const receipt = await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
 
             return receipt.transactionHash.toString();
         } catch (err) {
@@ -275,9 +329,10 @@ export class SmartContract {
 
     async markDealEnded(dealID: number): Promise<string> {
         try {
-            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+            const web3 = await this.getWeb3();
+            const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
-            const block = await this.web3.eth.getBlock();
+            const block = await web3.eth.getBlock();
 
             const transaction = {
                 from: account.address,
@@ -288,11 +343,11 @@ export class SmartContract {
                 maxFeePerGas: block.baseFeePerGas! * 2n,
                 maxPriorityFeePerGas: 100000,
             };
-            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+            const signedTransaction = await web3.eth.accounts.signTransaction(
                 transaction,
                 account.privateKey,
             );
-            const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+            const receipt = await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
 
             return receipt.transactionHash.toString();
         } catch (err) {
@@ -304,9 +359,11 @@ export class SmartContract {
     async updateCount(dealID: number, address: string): Promise<string> {
         try {
             console.log(`Updating count for deal ${dealID} for user ${address}`);
-            const contract = new this.web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
+
+            const web3 = await this.getWeb3();
+            const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
             const account = await this.getAccount();
-            const block = await this.web3.eth.getBlock();
+            const block = await web3.eth.getBlock();
 
             const transaction = {
                 from: account.address,
@@ -318,11 +375,11 @@ export class SmartContract {
                 maxFeePerGas: block.baseFeePerGas! * 2n,
                 maxPriorityFeePerGas: 100000,
             };
-            const signedTransaction = await this.web3.eth.accounts.signTransaction(
+            const signedTransaction = await web3.eth.accounts.signTransaction(
                 transaction,
                 account.privateKey,
             );
-            const receipt = await this.web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
+            const receipt = await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
 
             return receipt.transactionHash.toString();
         } catch (err) {
@@ -333,9 +390,11 @@ export class SmartContract {
 
     async verifyTransaction(deal: DealDetails, txHash: string, isActivate: boolean): Promise<boolean> {
         try {
-            if (!process.env.RPC_URL && !process.env.CONTRACT_ADDRESS) {
+            if (!process.env.CONTRACT_ADDRESS) {
                 throw new Error("Set RPC_URL and CONTRACT_ADDRESS in env file");
             }
+
+            const rpcURL = await this.getRPCURL();
 
             const body = {
                 jsonrpc: "2.0",
@@ -345,7 +404,7 @@ export class SmartContract {
                     txHash
                 ]
             };
-            const result = await fetch(process.env.RPC_URL, {
+            const result = await fetch(rpcURL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -372,12 +431,15 @@ export class SmartContract {
                     return false;
                 }
 
-                const coinContract = new this.web3.eth.Contract(COINABI, deal.contract_address);
+                const web3 = await this.getWeb3();
+                const coinContract = new web3.eth.Contract(COINABI, deal.contract_address);
                 const decodedTransaction = coinContract.decodeMethodData(transaction.input);
                 if (decodedTransaction.__method__.includes("transfer(address,uint256)")) {
                     const receivingAccount = decodedTransaction['dst'] as string;
                     const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
-                    const metadata = await this.alchemy.core.getTokenMetadata(deal.contract_address);
+
+                    const alchemy = await this.getAlchemy();
+                    const metadata = await alchemy.core.getTokenMetadata(deal.contract_address);
             
                     if (metadata.decimals) {
                         let expectedAmount: bigint;
