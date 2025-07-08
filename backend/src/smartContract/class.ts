@@ -44,6 +44,10 @@ export class SmartContract {
 
     async getRPCURL(): Promise<string> {
         try {
+            if (process.env.ENVIRONMENT === 'staging') {
+                return process.env.RPC_URL;
+            }
+
             const rpcURL = await infisical.getSecret("RPC_URL", process.env.ENVIRONMENT);
             return rpcURL;
         } catch(err) {
@@ -66,7 +70,6 @@ export class SmartContract {
             throw new Error("Error getting web3");
         }
     }
-
 
     async getAccount(): Promise<Web3Account> {
         try {
@@ -241,6 +244,12 @@ export class SmartContract {
                 throw new Error("Error getting metadata for coin");
             }
         } catch (err) {
+            if (err instanceof Error) {
+                if (err.message.includes("insufficient funds for transfer")) {
+                    throw new Error("Insufficient ETH in backend account");
+                }
+            }
+
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
@@ -292,6 +301,12 @@ export class SmartContract {
             );
             await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
         } catch (err) {
+            if (err instanceof Error) {
+                if (err.message.includes("insufficient funds for transfer")) {
+                    throw new Error("Insufficient ETH in backend account");
+                }
+            }
+
             console.error("Error activating deal", err);
             throw new Error("Error activating deal");
         }
@@ -322,6 +337,11 @@ export class SmartContract {
 
             return receipt.transactionHash.toString();
         } catch (err) {
+            if (err instanceof Error) {
+                if (err.message.includes("insufficient funds for transfer")) {
+                    throw new Error("Insufficient ETH in backend account");
+                }
+            }
             console.error("Error joining deal in smart contract", err);
             throw new Error("Error joining user to deal");
         }
@@ -351,6 +371,12 @@ export class SmartContract {
 
             return receipt.transactionHash.toString();
         } catch (err) {
+            if (err instanceof Error) {
+                if (err.message.includes("insufficient funds for transfer")) {
+                    throw new Error("Insufficient ETH in backend account");
+                }
+            }
+
             console.error("Error marking deal as ended in smart contract", err);
             throw new Error("Error marking deal as ended in smart contract");
         }
@@ -383,6 +409,12 @@ export class SmartContract {
 
             return receipt.transactionHash.toString();
         } catch (err) {
+            if (err instanceof Error) {
+                if (err.message.includes("insufficient funds for transfer")) {
+                    throw new Error("Insufficient ETH in backend account");
+                }
+            }
+
             console.error("Error updating count in smart contract", err);
             throw new Error("Could not update count");
         }
