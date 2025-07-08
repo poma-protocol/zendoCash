@@ -362,7 +362,7 @@ export class DealsController {
     async updateCount(dealID: number, player: Player, minumumDaysHold: number, smartcontract: SmartContract) {
         try {
             await db.transaction(async (tx) => {
-                const updatedCount = player.count++;
+                const updatedCount = player.count + 1;
                 await tx.update(userDealsTable).set({
                     counter: updatedCount,
                     lastCountUpdateTime: new Date(),
