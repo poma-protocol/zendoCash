@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lte, isNotNull, sql } from "drizzle-orm";
 import { ARBITRUM_CHAIN } from "../constants";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
@@ -417,6 +417,29 @@ export class DealsModel {
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", {txHash, error: err});
             console.error("Error checking if commission transaction has been used", err);
             throw new Error("Could not check if commission transaction has been used");
+        }
+    }
+
+    async activeDeals(): Promise<number> {
+        try {
+            const today = new Date();
+            const deals = await db.select().from(dealsTable).where(lte(dealsTable.start_date, today));
+            let count = 0;
+
+            for (const d of deals) {
+                let endingDate = new Date(d.endDate);
+                endingDate.setDate(d.endDate.getDate() + d.miniumum_days_to_hold);
+
+                if (today < endingDate) {
+                    count = count+ 1;
+                }
+            }
+
+            return count;
+        } catch(err) {
+            console.error("Error getting number of active deals", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting number of active deals", err);
+            throw new Error("Error getting number of active deals");
         }
     }
 }

@@ -122,7 +122,8 @@ router.get("/owner/:address", async (req, res) => {
 router.get("/featured", async (req, res) => {
     try {
         const deals = await dealsController.getMany({ featured: true }, dealModel, smartContract);
-        res.json(deals);
+        const numActiveDeals = await dealsController.numActiveDeals(dealModel);
+        res.json({featured: deals, active: numActiveDeals});
     } catch (err) {
         if (err instanceof MyError) {
             await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting featured deals", err.message);

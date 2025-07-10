@@ -397,6 +397,17 @@ export class DealsController {
             throw new Error("Error updating count");
         }
     }
+
+    async numActiveDeals(dealsModel: DealsModel): Promise<number> {
+        try {
+            const active = await dealsModel.activeDeals();
+            return active;
+        } catch(err) {
+            console.error("Error getting number or active deals");
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting number of active deals", err);
+            return 0;
+        }
+    }
 }
 
 const dealsController = new DealsController();
