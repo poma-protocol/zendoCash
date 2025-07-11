@@ -142,7 +142,7 @@ router.post("/activate", async (req, res) => {
         const parsed = activateSchema.safeParse(req.body);
         if (parsed.success) {
             const details = parsed.data;
-            await dealsController.markAsActivated(details.dealID, details.transaction_hash, dealModel, smartContract);
+            await dealsController.markAsActivated(details.dealID, details.transaction_hash, details.code, dealModel, smartContract);
             res.status(201).json({ message: "Deal marked as activated" })
         } else {
             const errors = parsed.error.issues[0].message;

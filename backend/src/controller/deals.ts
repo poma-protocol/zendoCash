@@ -8,7 +8,6 @@ import { dealsTable, userDealsTable } from "../db/schema";
 import { eq, and, isNotNull } from "drizzle-orm";
 import smartContract from "../smartContract";
 import logger, { PostHogEventTypes } from "../logging";
-import { count } from "console";
 import axios from "axios";
 
 export interface DealDetails {
@@ -17,6 +16,7 @@ export interface DealDetails {
     tokenSymbol: string,
     tokenLogo: string | null,
     tokenDecimals: number,
+    name: string | null,
     description: string | null,
     tokenPrice: number,
     contract_address: string,
@@ -34,6 +34,7 @@ export interface DealDetails {
     activationDate: Date | null,
     done?: boolean,
     players: string[],
+    code: string | null,
     total_players: number,
     rewarded_players: number,
     commissionPaid: boolean;
@@ -98,26 +99,6 @@ export class DealsController {
             }
 
             const dealID = await dealModel.storeDealInDBAndContract(args, smartContract);
-
-            try {
-                if (args.code) {
-                    const dealToken = await smartContract.getTokenDetails(args.contract_address);
-                    if (dealToken) {
-                        const tokenPrice = await smartContract.getTokenPrice(dealToken.symbol);
-                        // Convert tracking link
-                        if (tokenPrice.data[0].prices[0]) {
-                            const response = await axios.post(`${process.env.TRACKING}/links/convert`, {
-                                linkID: args.code,
-                                value: (tokenPrice.data[0].prices[0].value * args.reward * args.max_rewards_give_out),
-                                itemID: dealID.toString()
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error("Error converting referral link code", err)
-                await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error Converting Reward link", err);
-            }
 
             return dealID;
         } catch (err) {
@@ -194,7 +175,7 @@ export class DealsController {
         }
     }
 
-    async markAsActivated(dealID: number, txHash: string, dealsModel: DealsModel, smartcontract: SmartContract) {
+    async markAsActivated(dealID: number, txHash: string, code: string | null | undefined, dealsModel: DealsModel, smartcontract: SmartContract) {
         try {
             const deal = await dealsModel.get(dealID, smartcontract);
             if (deal === null) {
@@ -218,6 +199,43 @@ export class DealsController {
             // Update deal in DB
             await smartcontract.activate(dealID);
             await dealsModel.markDealActivatedInDB(dealID, txHash);
+
+            try {
+                if (code) {
+                    const dealToken = await smartContract.getTokenDetails(deal.contract_address);
+                    if (dealToken) {
+                        const loginResponse = await axios.post(`${process.env.TRACKING}/auth/login`, {
+                            email: "test@test.com",
+                            password: "test"
+                        });
+
+                        if (loginResponse.status === 400) {
+                            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting auth details for tracking site", loginResponse.data['message']);
+                            throw new Error("Error logging in");
+                        }
+
+                        const token = loginResponse.data['token'];
+
+                        const tokenPrice = await smartContract.getTokenPrice(dealToken.symbol);
+                        // Convert tracking link
+                        if (tokenPrice.data[0].prices[0]) {
+                            const response = await axios.post(`${process.env.TRACKING}/links/convert`, {
+                                linkID: code,
+                                value: (tokenPrice.data[0].prices[0].value * deal.reward * deal.max_rewards),
+                                itemID: dealID.toString(),
+                                description: deal.name,
+                            }, {
+                                headers: {
+                                    Authorization: `Bearer ${token}`
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error converting referral link code", err)
+                await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error Converting Reward link", err);
+            }
         } catch (err) {
             if (err instanceof MyError) {
                 throw err;

@@ -25,6 +25,8 @@ interface RawDealDetails {
     activationDate: Date | null;
     commissionPaid: boolean;
     commissionDate: Date | null;
+    code: string | null;
+    name: string;
 }
 
 export class DealsModel {
@@ -99,6 +101,8 @@ export class DealsModel {
                 activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                 commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                 commissionDate: dealsTable.commissionDate,
+                code: dealsTable.code,
+                name: dealsTable.name,
             }).from(dealsTable).where(eq(dealsTable.id, id));
 
             const deal = deals[0] ?? null;
@@ -168,6 +172,8 @@ export class DealsModel {
                     activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                     commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                     commissionDate: dealsTable.commissionDate,
+                    code: dealsTable.code,
+                    name: dealsTable.name,
                 }).from(dealsTable).where(eq(dealsTable.contract_address, args.coinAddress.toLowerCase()));
             } else if (args.playerAddress) {
                 deals = await db.select({
@@ -189,6 +195,8 @@ export class DealsModel {
                     activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                     commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                     commissionDate: dealsTable.commissionDate,
+                    code: dealsTable.code,
+                    name: dealsTable.name,
                 }).from(dealsTable)
                     .innerJoin(userDealsTable, eq(dealsTable.id, userDealsTable.dealID))
                     .where(eq(userDealsTable.userAddress, args.playerAddress.toLowerCase()));
@@ -211,6 +219,8 @@ export class DealsModel {
                     activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                     commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                     commissionDate: dealsTable.commissionDate,
+                    code: dealsTable.code,
+                    name: dealsTable.name,
                 }).from(dealsTable).where(eq(dealsTable.coin_owner_address, args.owner.toLowerCase()));
             } else if (args.featured === true) {
                 const today = new Date();
@@ -233,6 +243,8 @@ export class DealsModel {
                     activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                     commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                     commissionDate: dealsTable.commissionDate,
+                    code: dealsTable.code,
+                    name: dealsTable.name,
                 }).from(dealsTable)
                     .where(and(gt(dealsTable.endDate, today), isNotNull(dealsTable.activationTxHash)))
                     .orderBy(desc(dealsTable.id))
@@ -256,6 +268,8 @@ export class DealsModel {
                     activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                     commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
                     commissionDate: dealsTable.commissionDate,
+                    code: dealsTable.code,
+                    name: dealsTable.name,
                 }).from(dealsTable);
             }
 
