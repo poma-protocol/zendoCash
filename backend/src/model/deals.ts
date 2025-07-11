@@ -44,7 +44,8 @@ export class DealsModel {
                     start_date: new Date(Date.parse(args.start_date)),
                     endDate: new Date(Date.parse(args.end_date)),
                     chain: ARBITRUM_CHAIN,
-                    description: args.description
+                    description: args.description,
+                    code: args.code
                 }).returning({ id: dealsTable.id });
 
                 dealID = insertedDeal[0].id;

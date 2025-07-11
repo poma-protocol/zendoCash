@@ -22,6 +22,7 @@ export const dealsTable = pgTable("deals", {
     description: text("description"),
     commissionTxHash: text("commissionTransactionHash"),
     commissionDate: timestamp("commissionDate"),
+    code: text("code")
 }, (table) => [
     check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
 ]);

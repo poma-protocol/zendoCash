@@ -10,7 +10,8 @@ export const createDealSchema = z.object({
     coin_owner_address: z.string({message: "Coin owner address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Coin owner address must be a valid ethereum address"}),
     start_date: z.string({message: "Start date must be a date"}),
     end_date: z.string({message: "End date must be a date"}),
-    description: z.string({message: "Description should be a string"}).optional()
+    description: z.string({message: "Description should be a string"}).optional(),
+    code: z.string().nullable().optional()
 });
 
 export const addressSchema = z.string({message: "Address must be a string"}).regex(/^(0x)?[0-9a-fA-F]{40}$/, {message: "Must be a valid ethereum address"});
