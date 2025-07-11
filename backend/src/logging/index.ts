@@ -30,7 +30,7 @@ class Logger {
                     properties: {
                         app: "zendocash",
                         description,
-                        details: details.toString()
+                        details: `${details}`
                     }
                 });
     
