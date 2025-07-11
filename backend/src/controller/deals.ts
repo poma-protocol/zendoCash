@@ -205,8 +205,8 @@ export class DealsController {
                     const dealToken = await smartContract.getTokenDetails(deal.contract_address);
                     if (dealToken) {
                         const loginResponse = await axios.post(`${process.env.TRACKING}/auth/login`, {
-                            email: "test@test.com",
-                            password: "test"
+                            email: process.env.TRACKING_EMAIL,
+                            password: process.env.TRACKING_PASSWORD
                         });
 
                         if (loginResponse.status === 400) {

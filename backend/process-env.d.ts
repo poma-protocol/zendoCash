@@ -14,7 +14,9 @@ declare global {
             POSTHOG_DISTINCT_ID: string,
             POSTHOG_SECRET: string,
             POSTHOG_URL: string,
-            TRACKING: string
+            TRACKING: string,
+            TRACKING_EMAIL: string,
+            TRACKING_PASSWORD: string,
         }
     }
 }
