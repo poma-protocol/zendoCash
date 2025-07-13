@@ -51,10 +51,10 @@ export class SmartContract {
 
             const rpcURL = await infisical.getSecret("RPC_URL", process.env.ENVIRONMENT);
             return rpcURL;
-        } catch(err) {
+        } catch (err) {
             await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error getting RPC URL from infisical", err);
             console.error("Error getting RPC URL", err);
-            
+
             if (!process.env.RPC_URL) {
                 throw new Error("Backup RPC URL not set in env");
             }
@@ -67,7 +67,7 @@ export class SmartContract {
         try {
             const rpcURL = await this.getRPCURL();
             return new Web3(rpcURL);
-        } catch(err) {
+        } catch (err) {
             await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error getting web3", err);
             console.error("Error getting web3", err);
             throw new Error("Error getting web3");
@@ -104,7 +104,7 @@ export class SmartContract {
     async getAlchemy(): Promise<Alchemy> {
         try {
             const alchemyKey = await this.getAPIKey();
-            
+
             if (process.env.ENVIRONMENT === "staging") {
                 const alchemy = new Alchemy({
                     apiKey: alchemyKey,
@@ -119,7 +119,7 @@ export class SmartContract {
                 });
                 return alchemy;
             }
-        } catch(err) {
+        } catch (err) {
             await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error getting alchemy instance", err);
             console.log("Error getting alchemy", err);
             throw new Error("Error getting alchemy");
@@ -253,12 +253,12 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", {err: "Insufficient ETH in backend account", data: args});
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err: "Insufficient ETH in backend account", data: args });
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
 
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", {err, deal: args});
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err, deal: args });
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
@@ -283,7 +283,7 @@ export class SmartContract {
                 return false;
             }
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Could not check if user has enough coins", {coin: coinAddress, user: address, balance: balance, error: err});
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Could not check if user has enough coins", { coin: coinAddress, user: address, balance: balance, error: err });
             console.error("Error getting user's balance", err);
             throw new Error("Couldn't get balance for user")
         }
@@ -313,7 +313,7 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error activating deal", {deal: dealID, error: "Insufficient ETH in backend account"});
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error activating deal", { deal: dealID, error: "Insufficient ETH in backend account" });
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
@@ -351,12 +351,12 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error joining deal", {err: "Insufficient ETH balance in backend account", deal: dealID, user: address});
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error joining deal", { err: "Insufficient ETH balance in backend account", deal: dealID, user: address });
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
 
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error joining deal", {error: err, deal: dealID, user: address});
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error joining deal", { error: err, deal: dealID, user: address });
             console.error("Error joining deal in smart contract", err);
             throw new Error("Error joining user to deal");
         }
@@ -426,12 +426,12 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error updating user count", {err: "Insufficient ETH balance in backend account", user: address, deal: dealID})
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error updating user count", { err: "Insufficient ETH balance in backend account", user: address, deal: dealID })
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
 
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error updating user count", {error: err, user: address, deal: dealID})
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error updating user count", { error: err, user: address, deal: dealID })
             console.error("Error updating count in smart contract", err);
             throw new Error("Could not update count");
         }
@@ -467,7 +467,6 @@ export class SmartContract {
                 console.log(resBody);
                 throw new Error("Could not get details of transaction");
             }
-            
 
             const parsed = decodedTransactionSchema.safeParse(resBody);
             if (parsed.success) {
@@ -480,41 +479,53 @@ export class SmartContract {
                     return false;
                 }
 
+                function processExpectedAmount(num: bigint, decimals: number): bigint {
+                    // If the decimals are greather than 0 then the result of the multiplication should be a number divisible by 10
+                    if (decimals > 0) {
+                        const remainder = num % BigInt(10);
+                        if (remainder !== BigInt(0)) {
+                            return num - remainder
+                        } else {
+                            return num;
+                        }
+                    } else {
+                        return num
+                    }
+                }
+
                 const web3 = await this.getWeb3();
                 const coinContract = new web3.eth.Contract(COINABI, deal.contract_address);
                 const decodedTransaction = coinContract.decodeMethodData(transaction.input);
+
                 if (decodedTransaction.__method__.includes("transfer(address,uint256)")) {
                     const receivingAccount = decodedTransaction['dst'] as string;
                     const sentAmount: bigint = decodedTransaction['rawAmount'] as bigint;
 
-                    const alchemy = await this.getAlchemy();
-                    const metadata = await alchemy.core.getTokenMetadata(deal.contract_address);
-            
-                    if (metadata.decimals) {
-                        let expectedAmount: bigint;
-                        if (isActivate) {
-                            expectedAmount = BigInt(Math.round(deal.reward * deal.max_rewards * Math.pow(10, metadata.decimals)));
-                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
-                        } else {
-                            expectedAmount = BigInt(Math.round(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, metadata.decimals)));
-                            return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.COMMISSION_ACCOUNT.toLowerCase();
-                        }
+                    let expectedAmount: bigint;
+                    if (isActivate) {
+                        expectedAmount = BigInt(Math.round(deal.reward * deal.max_rewards * Math.pow(10, deal.tokenDecimals)));
+                        expectedAmount = processExpectedAmount(expectedAmount, deal.tokenDecimals);
+                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.CONTRACT_ADDRESS.toLowerCase();
                     } else {
-                        throw new Error("Error getting decimals of coin");
+                        expectedAmount = BigInt(Math.round(deal.reward * COMMISSION * deal.max_rewards * Math.pow(10, deal.tokenDecimals)));
+                        expectedAmount = processExpectedAmount(expectedAmount, deal.tokenDecimals);
+                        return sentAmount >= expectedAmount && receivingAccount.toLowerCase() === process.env.COMMISSION_ACCOUNT.toLowerCase();
                     }
                 } else {
                     return false;
                 }
             } else {
-                await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error parsing payment transaction", {txHash: txHash ,data: resBody, errors: parsed.error.issues[0].message})
+                await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error parsing payment transaction", { txHash: txHash, data: resBody, errors: parsed.error.issues[0].message })
                 console.log("Error parsing result data");
                 console.log(parsed.error);
             }
             return false;
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, `Smartcontract: Error verifying ${isActivate ? "activate" : "commission"} payment transaction`, {txHash, err})
+            await logger.sendEvent(PostHogEventTypes.ERROR, `Smartcontract: Error verifying ${isActivate ? "activate" : "commission"} payment transaction`, { txHash, err })
             console.error("Error verifying transaction", err);
             throw new Error("Error verifying transaction");
         }
     }
 }
+
+
