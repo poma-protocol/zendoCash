@@ -270,7 +270,8 @@ export class DealsModel {
                     commissionDate: dealsTable.commissionDate,
                     code: dealsTable.code,
                     name: dealsTable.name,
-                }).from(dealsTable);
+                }).from(dealsTable)
+                .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
             }
 
             const toReturn: DealDetails[] = [];
