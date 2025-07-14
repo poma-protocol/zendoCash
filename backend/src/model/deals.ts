@@ -37,6 +37,21 @@ export interface SavedTokenDetails {
     logo: string
 }
 
+export interface RawExploreDealDetails {
+    id: number,
+    tokenSymbol: string | null,
+    startDate: Date,
+    endDate: Date,
+    reward: number,
+    minimumDaysToHold: number,
+    maxRewards: number,
+    totalPlayers: number,
+    activated: boolean,
+    players: string[]
+    tokenLogo: string | null,
+    minimumAmountToHold: number
+}
+
 export class DealsModel {
     async storeDealInDBAndContract(args: CreateDealsType, smartContract: SmartContract): Promise<number> {
         try {
@@ -507,6 +522,49 @@ export class DealsModel {
             console.log("Error getting stored token details", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting stored token details", err);
             throw new Error("Error getting stored token details");
+        }
+    }
+
+    async getExploreDealsDetails(): Promise<RawExploreDealDetails[]> {
+        try {
+            const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            const dealsRes = await db.select({
+                id: dealsTable.id,
+                startDate: dealsTable.start_date,
+                endDate: dealsTable.endDate,
+                reward: dealsTable.reward,
+                minimumDaysToHold: dealsTable.miniumum_days_to_hold,
+                maxRewards: dealsTable.max_rewards,
+                activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL AND ${dealsTable.commissionTxHash} IS NOT NULL`,
+                tokenSymbol: tokenDetailsTable.symbol,
+                tokenLogo: tokenDetailsTable.logo,
+                minimumAmountToHold: dealsTable.minimum_amount_to_hold
+            }).from(dealsTable)
+            .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
+            .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
+
+            let deals: RawExploreDealDetails[] = [];
+            for (const deal of dealsRes) {
+                const playersRes = await db.select({
+                    address: userDealsTable.userAddress
+                }).from(userDealsTable)
+                .where(eq(userDealsTable.dealID, deal.id));
+
+                const totalPlayers = playersRes.length;
+                const players = playersRes.map((i) => i.address);
+
+                deals.push({
+                    ...deal,
+                    totalPlayers,
+                    players
+                });
+            }
+
+            return deals;
+        } catch(err) {
+            console.error("Error getting explore page deal details from db", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting explore deals details", err);
+            throw new Error("Error getting explore deal details");
         }
     }
 }
