@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, lte, isNotNull, sql } from "drizzle-orm";
-import { ARBITRUM_CHAIN } from "../constants";
+import { ARBITRUM_CHAIN_MAINNET, ARBITRUM_CHAIN_TESNET } from "../constants";
 import db from "../db";
-import { dealsTable, userDealsTable } from "../db/schema";
+import { dealsTable, tokenDetailsTable, userDealsTable } from "../db/schema";
 import { SmartContract } from "../smartContract/class";
 import { CreateDealsType } from "../types";
 import { DealDetails, GetManyArgs } from "../controller/deals";
@@ -29,6 +29,14 @@ interface RawDealDetails {
     name: string;
 }
 
+export interface SavedTokenDetails {
+    address: string,
+    name: string,
+    symbol: string,
+    decimals: number,
+    logo: string
+}
+
 export class DealsModel {
     async storeDealInDBAndContract(args: CreateDealsType, smartContract: SmartContract): Promise<number> {
         try {
@@ -45,7 +53,7 @@ export class DealsModel {
                     max_rewards: args.max_rewards_give_out,
                     start_date: new Date(Date.parse(args.start_date)),
                     endDate: new Date(Date.parse(args.end_date)),
-                    chain: ARBITRUM_CHAIN,
+                    chain: ARBITRUM_CHAIN_MAINNET,
                     description: args.description,
                     code: args.code
                 }).returning({ id: dealsTable.id });
@@ -75,7 +83,7 @@ export class DealsModel {
                 throw new Error("Could not create deal")
             }
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error creating deal in contract and storing in db", {err, deal: args})
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error creating deal in contract and storing in db", { err, deal: args })
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
@@ -271,7 +279,7 @@ export class DealsModel {
                     code: dealsTable.code,
                     name: dealsTable.name,
                 }).from(dealsTable)
-                .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
+                    .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
             }
 
             const toReturn: DealDetails[] = [];
@@ -339,7 +347,7 @@ export class DealsModel {
                 commissionTxHash: txn.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error marking commission of deal as paid", {deal: dealID, txn, error: err})
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error marking commission of deal as paid", { deal: dealID, txn, error: err })
             console.error("Error marking commission as paid", err);
             throw new Error("Could not mark commission as paid");
         }
@@ -376,7 +384,7 @@ export class DealsModel {
                 }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
             });
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error joining deal on contract and updating deal", {error: err, deal: dealID, user: address})
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error joining deal on contract and updating deal", { error: err, deal: dealID, user: address })
             console.error("Error updating db and contract", err);
             throw new Error("Error updating db and contract");
         }
@@ -400,7 +408,7 @@ export class DealsModel {
                 counter: 0
             }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress.toLowerCase())));
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error reseting user count", {error: err, deal: dealID, user: userAddress})
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error reseting user count", { error: err, deal: dealID, user: userAddress })
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
         }
@@ -430,7 +438,7 @@ export class DealsModel {
 
             return results.length > 0;
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", {txHash, error: err});
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", { txHash, error: err });
             console.error("Error checking if commission transaction has been used", err);
             throw new Error("Could not check if commission transaction has been used");
         }
@@ -447,15 +455,58 @@ export class DealsModel {
                 endingDate.setDate(d.endDate.getDate() + d.miniumum_days_to_hold);
 
                 if (today < endingDate) {
-                    count = count+ 1;
+                    count = count + 1;
                 }
             }
 
             return count;
-        } catch(err) {
+        } catch (err) {
             console.error("Error getting number of active deals", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting number of active deals", err);
             throw new Error("Error getting number of active deals");
+        }
+    }
+
+    async saveTokenDetails(args: SavedTokenDetails) {
+        try {
+            const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            await db.insert(tokenDetailsTable).values({
+                address: args.address,
+                name: args.name,
+                symbol: args.symbol,
+                logo: args.logo,
+                decimals: args.decimals,
+                chain: chain
+            });
+        } catch (err) {
+            console.error("Error saving db details", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error saving token details to db", err);
+            throw new Error("Error saving token details");
+        }
+    }
+
+    async getStoredTokenDetials(address: string): Promise<SavedTokenDetails | null> {
+        try {
+            const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            const data = await db.select()
+                .from(tokenDetailsTable)
+                .where(and(eq(tokenDetailsTable.chain, chain), eq(tokenDetailsTable.address, address)));
+
+            if (data.length <= 0) {
+                return null;
+            } else {
+                return {
+                    name: data[0].name,
+                    symbol: data[0].symbol,
+                    logo: data[0].logo,
+                    address: data[0].address,
+                    decimals: data[0].decimals
+                };
+            }
+        } catch(err) {
+            console.log("Error getting stored token details", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting stored token details", err);
+            throw new Error("Error getting stored token details");
         }
     }
 }

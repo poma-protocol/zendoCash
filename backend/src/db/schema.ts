@@ -38,3 +38,14 @@ export const userDealsTable = pgTable("userDeals", {
 }, (table) => [
     primaryKey({columns: [table.userAddress, table.dealID]})
 ]);
+
+export const tokenDetailsTable = pgTable("tokenDetails", {
+    address: text("address").notNull(),
+    chain: text("chain").notNull(),
+    name: text("name").notNull(),
+    symbol: text("symbol").notNull(),
+    decimals: integer("decimals").notNull(),
+    logo: text("logo").notNull()
+}, (table) => [
+    primaryKey({columns: [table.address, table.chain]})
+]);
