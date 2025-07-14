@@ -191,11 +191,6 @@ export class DealsController {
                 throw new MyError(Errors.TRANSACTION_USED_BEFORE);
             }
 
-            const isTransactionValid = await smartcontract.verifyTransaction(deal, txHash, true);
-            if (!isTransactionValid) {
-                throw new MyError(Errors.INVALID_TRANSACTION_HASH);
-            }
-
             // Update deal in DB
             await smartcontract.activate(dealID);
             await dealsModel.markDealActivatedInDB(dealID, txHash);
@@ -258,11 +253,6 @@ export class DealsController {
             const hasCommissionTransactionBeenUsed = await dealsModel.hasCommissinTransactionBeenUsed(txHash);
             if (hasCommissionTransactionBeenUsed === true) {
                 throw new MyError(Errors.TRANSACTION_USED_BEFORE);
-            }
-
-            const isTransactionValid = await smartContract.verifyTransaction(deal, txHash, false);
-            if (!isTransactionValid) {
-                throw new MyError(Errors.INVALID_TRANSACTION_HASH);
             }
 
             await dealsModel.markCommissionPaid(dealID, txHash);

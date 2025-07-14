@@ -57,7 +57,8 @@ describe("Deal Controller Tests", () => {
         tokenPrice: 0,
         tokenDecimals: 1,
         commissionDate: today,
-        commissionPaid: true
+        commissionPaid: true,
+        code: "",
     }
 
     const joinArgs = {
@@ -109,16 +110,6 @@ describe("Deal Controller Tests", () => {
         dealsModelMock.hasUserJoinedDeal = jest.fn().mockImplementation((deal_id: number, address: string) => {
             return new Promise((res, rej) => {
                 if (address === alreadyJoinedAddress) {
-                    res(true);
-                } else {
-                    res(false);
-                }
-            })
-        });
-
-        smartContractMock.verifyTransaction = jest.fn().mockImplementation((deal: DealDetails, txHash: string, isActivate: boolean) => {
-            return new Promise((res, rej) => {
-                if (txHash === validTransactionHash && deal.id === createdDealID) {
                     res(true);
                 } else {
                     res(false);
@@ -205,7 +196,7 @@ describe("Deal Controller Tests", () => {
     describe("Mark deal as activated test", () => {
         it("should fail if deal does not exist", async () => {
             try {
-                await testDealController.markAsActivated(123123, validTransactionHash, dealsModelMock, smartContractMock);
+                await testDealController.markAsActivated(123123, validTransactionHash, "", dealsModelMock, smartContractMock);
                 expect(false).toBe(true);
             } catch (err) {
                 if (err instanceof MyError) {
@@ -220,26 +211,9 @@ describe("Deal Controller Tests", () => {
             }
         });
 
-        it("should fail if transaction is not valid", async () => {
-            try {
-                await testDealController.markAsActivated(createdDealID, invalidTransactionHash, dealsModelMock, smartContractMock);
-                expect(false).toBe(true);
-            } catch (err) {
-                if (err instanceof MyError) {
-                    if (err.message === Errors.INVALID_TRANSACTION_HASH) {
-                        expect(true).toBe(true);
-                        return;
-                    }
-                }
-
-                console.log("Unexpected error", err);
-                expect(false).toBe(true);
-            }
-        });
-
         it("should fail if activation transaction hash has been used before", async () => {
             try {
-                await testDealController.markAsActivated(createdDealID, "usedBefore", dealsModelMock, smartContractMock);
+                await testDealController.markAsActivated(createdDealID, "usedBefore", "", dealsModelMock, smartContractMock);
                 expect(false).toBe(true);
             } catch (err) {
                 if (err instanceof MyError) {
@@ -256,7 +230,7 @@ describe("Deal Controller Tests", () => {
 
         it("should mark deal as activated", async () => {
             try {
-                await testDealController.markAsActivated(createdDealID, validTransactionHash, dealsModelMock, smartContractMock);
+                await testDealController.markAsActivated(createdDealID, validTransactionHash, "", dealsModelMock, smartContractMock);
                 expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledTimes(1)
                 expect(dealsModelMock.markDealActivatedInDB).toHaveBeenCalledWith(createdDealID, validTransactionHash);
             } catch (err) {

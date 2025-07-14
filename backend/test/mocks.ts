@@ -1,12 +1,11 @@
-import { Alchemy } from "alchemy-sdk";
 import { DealsModel } from "../src/model/deals.js";
 import { SmartContract } from "../src/smartContract/class.js";
 import { DealsController } from "../src/controller/deals.js"
-import Web3 from "web3";
 
 export const smartContractMock = {
-    web3: {} as Web3,
-    alchemy: {} as Alchemy,
+    getAlchemy: jest.fn(),
+    getRPCURL: jest.fn(),
+    getWeb3: jest.fn(),
     isValidAddress: jest.fn(),
     createDeal: jest.fn(),
     doesUserHaveBalance: jest.fn(),
@@ -15,7 +14,6 @@ export const smartContractMock = {
     updateCount: jest.fn(),
     getAccount: jest.fn(),
     activate: jest.fn(),
-    verifyTransaction: jest.fn(),
     getTokenPrice: jest.fn(),
     getTokenDetails: jest.fn(),
     getAPIKey: jest.fn()
@@ -31,7 +29,9 @@ export const dealsModelMock = {
     markDealEnded: jest.fn(),
     resetCount: jest.fn(),
     hasActivationTransactionBeenUsed: jest.fn(),
-    hasCommissinTransactionBeenUsed: jest.fn()
+    hasCommissinTransactionBeenUsed: jest.fn(),
+    markCommissionPaid: jest.fn(),
+    activeDeals: jest.fn()
 } as DealsModel
 
 export const dealsControllerMock = {
@@ -44,5 +44,6 @@ export const dealsControllerMock = {
     markEnded: jest.fn(),
     resetCount: jest.fn(),
     storeCommission: jest.fn(),
-    updateCount: jest.fn()
+    updateCount: jest.fn(),
+    numActiveDeals: jest.fn()
 } as DealsController
