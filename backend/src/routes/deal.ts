@@ -4,7 +4,7 @@ import { Errors } from "../errors/messages";
 import { activateSchema, addressSchema, commissionSchema, createDealSchema, joinSchema } from "../types";
 import dealsController from "../controller/deals";
 import smartContract from "../smartContract";
-import dealModel from "../model/deals";
+import dealModel, { DealsModel } from "../model/deals";
 import logger, { PostHogEventTypes } from "../logging";
 
 const router: Router = Router();
@@ -54,7 +54,7 @@ router.get("/coin/:coin", async (req, res) => {
 
 router.get("/all", async (req, res) => {
     try {
-        const deals = await dealsController.getMany({}, dealModel, smartContract);
+        const deals = await dealsController.getExplorePageDetails(dealModel, smartContract);
         res.json(deals);
     } catch (err) {
         if (err instanceof MyError) {

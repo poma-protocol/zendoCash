@@ -34,11 +34,12 @@ export interface SavedTokenDetails {
     name: string,
     symbol: string,
     decimals: number,
-    logo: string
+    logo: string | null
 }
 
 export interface RawExploreDealDetails {
     id: number,
+    tokenAddress: string,
     tokenSymbol: string | null,
     startDate: Date,
     endDate: Date,
@@ -49,6 +50,7 @@ export interface RawExploreDealDetails {
     activated: boolean,
     players: string[]
     tokenLogo: string | null,
+    tokenName: string | null,
     minimumAmountToHold: number
 }
 
@@ -531,6 +533,7 @@ export class DealsModel {
             const dealsRes = await db.select({
                 id: dealsTable.id,
                 startDate: dealsTable.start_date,
+                tokenAddress: dealsTable.contract_address,
                 endDate: dealsTable.endDate,
                 reward: dealsTable.reward,
                 minimumDaysToHold: dealsTable.miniumum_days_to_hold,
@@ -538,7 +541,8 @@ export class DealsModel {
                 activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL AND ${dealsTable.commissionTxHash} IS NOT NULL`,
                 tokenSymbol: tokenDetailsTable.symbol,
                 tokenLogo: tokenDetailsTable.logo,
-                minimumAmountToHold: dealsTable.minimum_amount_to_hold
+                minimumAmountToHold: dealsTable.minimum_amount_to_hold,
+                tokenName: tokenDetailsTable.name,
             }).from(dealsTable)
             .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
             .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));

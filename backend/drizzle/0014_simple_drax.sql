@@ -1,0 +1,1 @@
+ALTER TABLE "tokenDetails" ALTER COLUMN "logo" DROP NOT NULL;

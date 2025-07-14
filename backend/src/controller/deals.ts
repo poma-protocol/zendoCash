@@ -6,7 +6,6 @@ import { DealsModel } from "../model/deals";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
 import { eq, and, isNotNull } from "drizzle-orm";
-import smartContract from "../smartContract";
 import logger, { PostHogEventTypes } from "../logging";
 import axios from "axios";
 
@@ -63,6 +62,23 @@ export interface MainFunctionDeals {
     minimum_days_hold: number,
     endDate: Date,
     players: Player[]
+}
+
+export interface ExploreDealDetails {
+    tokenName: string,
+    tokenSymbol: string,
+    startDate: Date,
+    endDate: Date,
+    reward: number,
+    tokenPrice: number,
+    minimumDaysToHold: number,
+    maxRewards: number,
+    totalPlayers: number,
+    activated: boolean,
+    players: string[],
+    id: number,
+    tokenLogo: string | null,
+    minimumAmountToHold: number
 }
 
 export class DealsController {
@@ -428,6 +444,120 @@ export class DealsController {
             console.error("Error getting number or active deals");
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting number of active deals", err);
             return 0;
+        }
+    }
+
+    async getExplorePageDetails(dealsModel: DealsModel, smartcontract: SmartContract): Promise<ExploreDealDetails[]> {
+        try {
+            const rawDeals = await dealsModel.getExploreDealsDetails();
+            const deals: ExploreDealDetails[] = [];
+            const insertedAddresses: {
+                name: string,
+                address: string,
+                logo: string | null,
+                price: number,
+                symbol: string,
+                decimals: number
+            }[] = [];
+
+
+            for (const deal of rawDeals) {
+                if (deal.tokenSymbol === null || deal.tokenLogo === null || deal.tokenName === null) {
+                    const isInserted = insertedAddresses.find((i) => i.address === deal.tokenAddress);
+                    if (isInserted) {
+                        deals.push({
+                            tokenLogo: isInserted.logo,
+                            tokenName: isInserted.name,
+                            tokenPrice: isInserted.price,
+                            tokenSymbol: isInserted.symbol,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            reward: deal.reward,
+                            minimumAmountToHold: deal.minimumAmountToHold,
+                            maxRewards: deal.maxRewards,
+                            totalPlayers: deal.totalPlayers,
+                            players: deal.players,
+                            id: deal.id,
+                            minimumDaysToHold: deal.minimumDaysToHold,
+                            activated: deal.activated
+                        });
+                    } else {
+                        const tokenDetails = await smartcontract.getTokenDetails(deal.tokenAddress);
+                        if (!tokenDetails) {
+                            continue;
+                        }
+
+                        await dealsModel.saveTokenDetails({
+                            address: deal.tokenAddress,
+                            symbol: tokenDetails.symbol,
+                            decimals: tokenDetails.decimals,
+                            logo: tokenDetails.logoURL,
+                            name: tokenDetails.name
+                        });
+
+                        deals.push({
+                            tokenLogo: tokenDetails.logoURL,
+                            tokenName: tokenDetails.name,
+                            tokenPrice: tokenDetails.price,
+                            tokenSymbol: tokenDetails.symbol,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            reward: deal.reward,
+                            minimumAmountToHold: deal.minimumAmountToHold,
+                            maxRewards: deal.maxRewards,
+                            totalPlayers: deal.totalPlayers,
+                            players: deal.players,
+                            id: deal.id,
+                            minimumDaysToHold: deal.minimumDaysToHold,
+                            activated: deal.activated
+                        });
+
+                        insertedAddresses.push({
+                            address: deal.tokenAddress,
+                            name: tokenDetails.name,
+                            logo: tokenDetails.logoURL,
+                            price: tokenDetails.price,
+                            symbol: tokenDetails.symbol,
+                            decimals: tokenDetails.decimals
+                        });
+                    }
+                } else {
+                    const tokenPrice = await smartcontract.getTokenPrice(deal.tokenAddress);
+                    let price = 0;
+
+                    for (const d of tokenPrice.data) {
+                        for (const p of d.prices) {
+                            if (p.currency === "usd") {
+                                price = p.value;
+                                break;
+                            }
+                        }
+                    }
+
+                    deals.push({
+                        tokenLogo: deal.tokenLogo,
+                        tokenName: deal.tokenName,
+                        tokenPrice: price,
+                        tokenSymbol: deal.tokenSymbol,
+                        startDate: deal.startDate,
+                        endDate: deal.endDate,
+                        reward: deal.reward,
+                        minimumAmountToHold: deal.minimumAmountToHold,
+                        maxRewards: deal.maxRewards,
+                        totalPlayers: deal.totalPlayers,
+                        players: deal.players,
+                        id: deal.id,
+                        minimumDaysToHold: deal.minimumDaysToHold,
+                        activated: deal.activated
+                    })
+                }
+            }
+
+            return deals;
+        } catch (err) {
+            console.log("Error getting explore page deal details", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting explore page details", err);
+            throw new Error("Error getting explore page deal details");
         }
     }
 }

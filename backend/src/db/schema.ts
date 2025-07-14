@@ -45,7 +45,7 @@ export const tokenDetailsTable = pgTable("tokenDetails", {
     name: text("name").notNull(),
     symbol: text("symbol").notNull(),
     decimals: integer("decimals").notNull(),
-    logo: text("logo").notNull()
+    logo: text("logo")
 }, (table) => [
     primaryKey({columns: [table.address, table.chain]})
 ]);
