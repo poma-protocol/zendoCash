@@ -197,35 +197,27 @@ export class DealsController {
 
             try {
                 if (code) {
-                    const dealToken = await smartContract.getTokenDetails(deal.contract_address);
-                    if (dealToken) {
-                        const loginResponse = await axios.post(`${process.env.TRACKING}/auth/login`, {
-                            email: process.env.TRACKING_EMAIL,
-                            password: process.env.TRACKING_PASSWORD
-                        });
+                    const loginResponse = await axios.post(`${process.env.TRACKING}/auth/login`, {
+                        email: process.env.TRACKING_EMAIL,
+                        password: process.env.TRACKING_PASSWORD
+                    });
 
-                        if (loginResponse.status === 400) {
-                            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting auth details for tracking site", loginResponse.data['message']);
-                            throw new Error("Error logging in");
-                        }
-
-                        const token = loginResponse.data['token'];
-
-                        const tokenPrice = await smartContract.getTokenPrice(dealToken.symbol);
-                        // Convert tracking link
-                        if (tokenPrice.data[0].prices[0]) {
-                            const response = await axios.post(`${process.env.TRACKING}/links/convert`, {
-                                linkID: code,
-                                value: (tokenPrice.data[0].prices[0].value * deal.reward * deal.max_rewards),
-                                itemID: dealID.toString(),
-                                description: deal.name,
-                            }, {
-                                headers: {
-                                    Authorization: `Bearer ${token}`
-                                }
-                            });
-                        }
+                    if (loginResponse.status === 400) {
+                        await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting auth details for tracking site", loginResponse.data['message']);
+                        throw new Error("Error logging in");
                     }
+
+                    const token = loginResponse.data['token'];
+                    const response = await axios.post(`${process.env.TRACKING}/links/convert`, {
+                        linkID: code,
+                        value: (deal.tokenPrice * deal.max_rewards),
+                        itemID: dealID.toString(),
+                        description: deal.name,
+                    }, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
                 }
             } catch (err) {
                 console.error("Error converting referral link code", err)
