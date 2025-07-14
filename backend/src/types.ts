@@ -47,7 +47,6 @@ export const decodedTransactionSchema = z.object({
 });
 
 const tokenPrice = z.object({
-    symbol: z.string(),
     prices: z.array(z.object({
         currency: z.string(),
         value: z.string().transform((arg) => Number.parseFloat(arg))

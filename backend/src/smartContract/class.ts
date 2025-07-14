@@ -176,16 +176,17 @@ export class SmartContract {
         }
     }
 
-    async getTokenPrice(symbol: string): Promise<TokenPrice> {
+    async getTokenPrice(address: string): Promise<TokenPrice> {
         try {
-            const apiKey = await this.getAPIKey();
-            const resp = await fetch(`https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/by-symbol?symbols=${symbol}`);
-
-            if (resp.status !== 200) {
-                throw new Error("Could not get details from server");
-            }
-
-            const returned = await resp.json();
+            const network = process.env.ENVIRONMENT === 'prod' ? Network.ARB_MAINNET: Network.ARB_SEPOLIA;
+            const alchemy = await this.getAlchemy();
+            const returned = await alchemy.prices.getTokenPriceByAddress([
+                {   
+                    address,
+                    network
+                }
+            ])
+            console.log(returned);
             const parsed = tokenPriceSchema.safeParse(returned);
             if (parsed.success) {
                 return parsed.data;
