@@ -136,15 +136,14 @@ export class SmartContract {
             const alchemy = await this.getAlchemy();
             const metadata = await alchemy.core.getTokenMetadata(address);
             if (metadata.name && metadata.symbol && metadata.decimals) {
-                const tokenPriceData = await this.getTokenPrice(metadata.symbol);
+                const tokenPriceData = await this.getTokenPrice(address);
                 let price = 0;
 
                 for (const d of tokenPriceData.data) {
-                    if (d.symbol === metadata.symbol) {
-                        for (const p of d.prices) {
-                            if (p.currency === "usd") {
-                                price = p.value;
-                            }
+                    for (const p of d.prices) {
+                        if (p.currency === "usd") {
+                            price = p.value;
+                            break;
                         }
                     }
                 }
@@ -178,15 +177,15 @@ export class SmartContract {
 
     async getTokenPrice(address: string): Promise<TokenPrice> {
         try {
-            const network = process.env.ENVIRONMENT === 'prod' ? Network.ARB_MAINNET: Network.ARB_SEPOLIA;
+            const network = process.env.ENVIRONMENT === 'prod' ? Network.ARB_MAINNET : Network.ARB_SEPOLIA;
             const alchemy = await this.getAlchemy();
             const returned = await alchemy.prices.getTokenPriceByAddress([
-                {   
+                {
                     address,
                     network
                 }
             ])
-            console.log(returned);
+            
             const parsed = tokenPriceSchema.safeParse(returned);
             if (parsed.success) {
                 return parsed.data;
