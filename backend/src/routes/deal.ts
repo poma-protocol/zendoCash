@@ -121,9 +121,11 @@ router.get("/owner/:address", async (req, res) => {
 
 router.get("/featured", async (req, res) => {
     try {
-        const deals = await dealsController.getMany({ featured: true }, dealModel, smartContract);
-        const numActiveDeals = await dealsController.numActiveDeals(dealModel);
-        res.json({featured: deals, active: numActiveDeals});
+        const allDeals = await dealsController.getExplorePageDetails(dealModel, smartContract);
+        const numActiveDeals = allDeals.length;
+        const copied = [...allDeals];
+        const featured = copied.sort((a, b) => (b.reward * b.tokenPrice * b.maxRewards) - (a.reward * a.tokenPrice * a.maxRewards))
+        res.json({featured: featured.slice(0, 3), active: numActiveDeals});
     } catch (err) {
         if (err instanceof MyError) {
             await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting featured deals", err.message);

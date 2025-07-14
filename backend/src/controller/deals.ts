@@ -459,10 +459,10 @@ export class DealsController {
                 symbol: string,
                 decimals: number
             }[] = [];
-
+            const gottenPrices: { address: string, price: number }[] = [];
 
             for (const deal of rawDeals) {
-                if (deal.tokenSymbol === null || deal.tokenLogo === null || deal.tokenName === null) {
+                if (deal.tokenSymbol === null || deal.tokenName === null) {
                     const isInserted = insertedAddresses.find((i) => i.address === deal.tokenAddress);
                     if (isInserted) {
                         deals.push({
@@ -486,6 +486,8 @@ export class DealsController {
                         if (!tokenDetails) {
                             continue;
                         }
+
+                        gottenPrices.push({ address: deal.tokenAddress, price: tokenDetails.price });
 
                         await dealsModel.saveTokenDetails({
                             address: deal.tokenAddress,
@@ -522,34 +524,57 @@ export class DealsController {
                         });
                     }
                 } else {
-                    const tokenPrice = await smartcontract.getTokenPrice(deal.tokenAddress);
-                    let price = 0;
+                    const priceGotten = gottenPrices.find((p) => p.address === deal.tokenAddress);
 
-                    for (const d of tokenPrice.data) {
-                        for (const p of d.prices) {
-                            if (p.currency === "usd") {
-                                price = p.value;
-                                break;
+                    if (!priceGotten) {
+                        const tokenPrice = await smartcontract.getTokenPrice(deal.tokenAddress);
+                        let price = 0;
+
+                        for (const d of tokenPrice.data) {
+                            for (const p of d.prices) {
+                                if (p.currency === "usd") {
+                                    price = p.value;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    deals.push({
-                        tokenLogo: deal.tokenLogo,
-                        tokenName: deal.tokenName,
-                        tokenPrice: price,
-                        tokenSymbol: deal.tokenSymbol,
-                        startDate: deal.startDate,
-                        endDate: deal.endDate,
-                        reward: deal.reward,
-                        minimumAmountToHold: deal.minimumAmountToHold,
-                        maxRewards: deal.maxRewards,
-                        totalPlayers: deal.totalPlayers,
-                        players: deal.players,
-                        id: deal.id,
-                        minimumDaysToHold: deal.minimumDaysToHold,
-                        activated: deal.activated
-                    })
+                        gottenPrices.push({ address: deal.tokenAddress, price: price });
+
+                        deals.push({
+                            tokenLogo: deal.tokenLogo,
+                            tokenName: deal.tokenName,
+                            tokenPrice: price,
+                            tokenSymbol: deal.tokenSymbol,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            reward: deal.reward,
+                            minimumAmountToHold: deal.minimumAmountToHold,
+                            maxRewards: deal.maxRewards,
+                            totalPlayers: deal.totalPlayers,
+                            players: deal.players,
+                            id: deal.id,
+                            minimumDaysToHold: deal.minimumDaysToHold,
+                            activated: deal.activated
+                        })
+                    } else {
+                        deals.push({
+                            tokenLogo: deal.tokenLogo,
+                            tokenName: deal.tokenName,
+                            tokenPrice: priceGotten.price,
+                            tokenSymbol: deal.tokenSymbol,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            reward: deal.reward,
+                            minimumAmountToHold: deal.minimumAmountToHold,
+                            maxRewards: deal.maxRewards,
+                            totalPlayers: deal.totalPlayers,
+                            players: deal.players,
+                            id: deal.id,
+                            minimumDaysToHold: deal.minimumDaysToHold,
+                            activated: deal.activated
+                        })
+                    }
                 }
             }
 
