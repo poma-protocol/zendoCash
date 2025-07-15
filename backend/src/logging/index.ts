@@ -21,8 +21,19 @@ class Logger {
         )
     }
 
+    private serializeError(err: any): any {
+        if (err instanceof Error) {
+            return {
+                name: err.name,
+                message: err.message,
+                stack: err.stack
+            }
+        }
+
+        return err;
+    }
+
     async sendEvent(event_type: PostHogEventTypes, description: string, details: any) {
-        const detailsToLog = details?.message ?? `${details}`;
         if (!(process.env.POSTHOG_DISTINCT_ID === "zendocash local development")) {
             try {
                 this.client.capture({
@@ -31,7 +42,7 @@ class Logger {
                     properties: {
                         app: "zendocash",
                         description,
-                        details: detailsToLog
+                        details: this.serializeError(details)
                     }
                 });
     
