@@ -212,8 +212,8 @@ export class SmartContract {
             const alchemy = await this.getAlchemy();
             const metadata = await alchemy.core.getTokenMetadata(args.contract_address);
             if (metadata.decimals) {
-                const processedReward = BigInt((args.maxParticipants * args.reward) * Math.pow(10, metadata.decimals));
-                const goal = BigInt(args.minimum_amount_to_hold * Math.pow(10, metadata.decimals));
+                const processedReward = BigInt(Math.round((args.maxParticipants * args.reward) * Math.pow(10, metadata.decimals)));
+                const goal = BigInt(Math.round(args.minimum_amount_to_hold * Math.pow(10, metadata.decimals)));
 
                 const web3 = await this.getWeb3();
                 const contract = new web3.eth.Contract(abi, process.env.CONTRACT_ADDRESS);
