@@ -22,9 +22,7 @@ class Logger {
     }
 
     async sendEvent(event_type: PostHogEventTypes, description: string, details: any) {
-        console.log("To string version")
-        console.log(details.toString());
-        console.log(`${details}`);
+        const detailsToLog = details?.message ?? `${details}`;
         if (!(process.env.POSTHOG_DISTINCT_ID === "zendocash local development")) {
             try {
                 this.client.capture({
@@ -33,7 +31,7 @@ class Logger {
                     properties: {
                         app: "zendocash",
                         description,
-                        details: `${details}`
+                        details: detailsToLog
                     }
                 });
     
