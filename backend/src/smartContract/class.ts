@@ -34,8 +34,6 @@ interface TokenDetails {
     price: number,
 }
 
-const COMMISSION = 0.1;
-
 export class SmartContract {
     constructor() {
         if (!process.env.ENVIRONMENT) {

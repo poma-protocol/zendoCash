@@ -23,9 +23,7 @@ export const dealsTable = pgTable("deals", {
     commissionTxHash: text("commissionTransactionHash"),
     commissionDate: timestamp("commissionDate"),
     code: text("code")
-}, (table) => [
-    check("VALID_CHAIN", sql`${table.chain} = 'arbitrum'`),
-]);
+});
 
 export const userDealsTable = pgTable("userDeals", {
     userAddress: text('address').notNull(),
