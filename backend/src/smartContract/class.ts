@@ -256,7 +256,7 @@ export class SmartContract {
                 }
             }
 
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err, deal: args });
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err: err, deal: args });
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
