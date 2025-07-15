@@ -251,12 +251,12 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err: "Insufficient ETH in backend account", data: args });
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal","Insufficient ETH in backend account");
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
 
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", { err: err, deal: args });
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smarcontract: Error creating deal", err);
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
