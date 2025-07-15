@@ -22,7 +22,8 @@ class Logger {
     }
 
     async sendEvent(event_type: PostHogEventTypes, description: string, details: any) {
-        console.log(details);
+        console.log("To string version")
+        console.log(details.toString());
         console.log(`${details}`);
         if (!(process.env.POSTHOG_DISTINCT_ID === "zendocash local development")) {
             try {
