@@ -4,7 +4,7 @@ import { Errors } from "../errors/messages";
 import { activateSchema, addressSchema, commissionSchema, createDealSchema, joinSchema } from "../types";
 import dealsController from "../controller/deals";
 import smartContract from "../smartContract";
-import dealModel, { DealsModel } from "../model/deals";
+import dealModel from "../model/deals";
 import logger, { PostHogEventTypes } from "../logging";
 
 const router: Router = Router();
@@ -16,12 +16,12 @@ router.get("/id/:id", async (req, res) => {
         res.json(deal);
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deal from ID", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deal from ID", {message: err.message, deal: req.params.id});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deal from ID", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deal from ID", {deal: req.params.id, err: err});
         console.error("Error getting deal", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -36,17 +36,17 @@ router.get("/coin/:coin", async (req, res) => {
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals for coin", error);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals for coin", {error: error, data: req.params.coin});
             res.status(400).json({ message: error });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals for coin", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals for coin", {message: err.message, coin: req.params.coin});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals for coin", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals for coin", {err: err, coin: req.params.coin});
         console.error("Error getting deals for a specific coin", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -78,17 +78,17 @@ router.get("/player/:address", async (req, res) => {
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals that player has joined", error);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals that player has joined", {error: error, player: req.params.address});
             res.status(400).json({ message: error });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals that player has joined", err);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals that player has joined", {error: err, player: req.params.address});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals that player has joined", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals that player has joined", {error: err, player: req.params.address});
         console.error("Error getting deals that a player has joined in", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -103,17 +103,17 @@ router.get("/owner/:address", async (req, res) => {
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals created by user", error);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for getting deals created by user", {err: error, owner: req.params.address});
             res.status(400).json({ message: error });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals created by user", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error getting deals created by user", {err: err.message, owner: req.params.address});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals created by user", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error getting deals created by user", {err, owner: req.params.address});
         console.error("Error getting deals that user has created", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -148,17 +148,17 @@ router.post("/activate", async (req, res) => {
             res.status(201).json({ message: "Deal marked as activated" })
         } else {
             const errors = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for activating deal", errors);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for activating deal", {error: errors, data: req.body});
             res.status(400).json({ message: errors });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error activating deal", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error activating deal", {error: err.message, data: req.body});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error activating deal", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error activating deal", {error: err, data: req.body});
         console.error("Error updating deal to activated", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -173,17 +173,17 @@ router.post("/commission", async (req, res) => {
             res.status(201).json({ message: "Deal commission paid" })
         } else {
             const errors = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for paying deal commission", errors);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for paying deal commission", {error: errors, data: req.body});
             res.status(400).json({ message: errors });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error paying commission for deal", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error paying commission for deal", {error: err.message, data: req.body});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error paying commission for deal", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error paying commission for deal", {error: err, data: req.body});
         console.error("Error updating deal to commission paid", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }
@@ -198,16 +198,16 @@ router.post("/", async (req, res) => {
             res.status(201).json({ dealID: dealID });
         } else {
             const error = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for creating deal", error);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for creating deal", {error, data: req.body});
             res.status(400).json({ message: error });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error creating deal", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error creating deal", {error: err.message, data: req.body});
             res.status(400).json({ message: err.message });
             return;
         } else {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error creating deal", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error creating deal", {error: err, data: req.body});
             console.log("Error creating deal", err);
             res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
         }
@@ -223,17 +223,17 @@ router.post("/join", async (req, res) => {
             res.status(201).json({ hasBalance });
         } else {
             const error = parsed.error.issues[0].message;
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for joining deal", error);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Invalid data for joining deal", {error, data: req.body});
             res.status(400).json({ message: error });
         }
     } catch (err) {
         if (err instanceof MyError) {
-            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error joining deal", err.message);
+            await logger.sendEvent(PostHogEventTypes.WARNING, "Request: Error joining deal", {error: err.message, data: req.body});
             res.status(400).json({ message: err.message });
             return;
         }
 
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error joining deal", err);
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Request: Error joining deal", {error: err, data: req.body});
         console.error("Error joining deal at endpoint", err);
         res.status(500).json({ message: Errors.INTERNAL_SERVER_ERROR });
     }

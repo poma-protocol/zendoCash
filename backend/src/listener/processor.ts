@@ -40,7 +40,7 @@ export default async function processMainDeal(deal: MainFunctionDeals, dealContr
             // Else do nothing
         }
     } catch (err) {
-        await logger.sendEvent(PostHogEventTypes.ERROR, "Deal Processor: Error processing deal", {error: err, deal: deal.deal_id})
+        await logger.sendEvent(PostHogEventTypes.ERROR, "Deal Processor: Error processing deal", {error: err, deal})
         console.error("Error processing main deal", err);
     }
 }

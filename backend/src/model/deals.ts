@@ -100,7 +100,7 @@ export class DealsModel {
                 throw new Error("Could not create deal")
             }
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error creating deal in contract and storing in db", { err, deal: args })
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error creating deal in contract and storing in db", err)
             console.error("Error creating deal", err);
             throw new Error("Error creating deal");
         }
@@ -364,7 +364,7 @@ export class DealsModel {
                 commissionTxHash: txn.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error marking commission of deal as paid", { deal: dealID, txn, error: err })
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error marking commission of deal as paid", err)
             console.error("Error marking commission as paid", err);
             throw new Error("Could not mark commission as paid");
         }
@@ -401,7 +401,7 @@ export class DealsModel {
                 }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, address.toLowerCase())));
             });
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error joining deal on contract and updating deal", { error: err, deal: dealID, user: address })
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error joining deal on contract and updating deal", err)
             console.error("Error updating db and contract", err);
             throw new Error("Error updating db and contract");
         }
@@ -414,6 +414,7 @@ export class DealsModel {
                 endDealTx: txHash.toLowerCase()
             }).where(eq(dealsTable.id, dealID));
         } catch (err) {
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Mark Deal As Ended", err);
             console.error("Error marking deal as ended", err);
             throw new Error("Error marking deal as ended in DB");
         }
@@ -425,7 +426,7 @@ export class DealsModel {
                 counter: 0
             }).where(and(eq(userDealsTable.dealID, dealID), eq(userDealsTable.userAddress, userAddress.toLowerCase())));
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error reseting user count", { error: err, deal: dealID, user: userAddress })
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error reseting user count", err)
             console.error("Error reseting count for user in database", err);
             throw new Error("Erorr resetting count in database");
         }
@@ -455,7 +456,7 @@ export class DealsModel {
 
             return results.length > 0;
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", { txHash, error: err });
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error checking if commission transaction has been used", err);
             console.error("Error checking if commission transaction has been used", err);
             throw new Error("Could not check if commission transaction has been used");
         }

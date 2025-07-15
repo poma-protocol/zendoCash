@@ -281,7 +281,7 @@ export class SmartContract {
                 return false;
             }
         } catch (err) {
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Could not check if user has enough coins", { coin: coinAddress, user: address, balance: balance, error: err });
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Could not check if user has enough coins", err);
             console.error("Error getting user's balance", err);
             throw new Error("Couldn't get balance for user")
         }
@@ -311,7 +311,7 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
-                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error activating deal", { deal: dealID, error: "Insufficient ETH in backend account" });
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smartcontract: Error activating deal", "Insufficient ETH in backend account");
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
@@ -386,10 +386,12 @@ export class SmartContract {
         } catch (err) {
             if (err instanceof Error) {
                 if (err.message.includes("insufficient funds for transfer")) {
+                    await logger.sendEvent(PostHogEventTypes.ERROR, "Smart contract: Mark Deal As Ended", "Insufficient ETH in backend account");
                     throw new Error("Insufficient ETH in backend account");
                 }
             }
 
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Smart contract: Mark Deal As Ended", err);
             console.error("Error marking deal as ended in smart contract", err);
             throw new Error("Error marking deal as ended in smart contract");
         }
