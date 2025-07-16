@@ -561,6 +561,7 @@ export class DealsModel {
     async getExploreDealsDetails(): Promise<RawExploreDealDetails[]> {
         try {
             const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            const today = new Date();
             const dealsRes = await db.select({
                 id: dealsTable.id,
                 startDate: dealsTable.start_date,
@@ -576,7 +577,7 @@ export class DealsModel {
                 tokenName: tokenDetailsTable.name,
             }).from(dealsTable)
                 .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
-                .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
+                .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash), gt(dealsTable.endDate, today)));
 
             let deals: RawExploreDealDetails[] = [];
             for (const deal of dealsRes) {
