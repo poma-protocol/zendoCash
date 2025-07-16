@@ -1,7 +1,7 @@
 import { Errors } from "../errors/messages";
 import { MyError } from "../errors/type";
 import { SmartContract } from "../smartContract/class";
-import { CreateDealsType, JoinSchemaType } from "../types";
+import { commissionSchema, CreateDealsType, JoinSchemaType } from "../types";
 import { DealsModel } from "../model/deals";
 import db from "../db";
 import { dealsTable, userDealsTable } from "../db/schema";
@@ -79,6 +79,19 @@ export interface ExploreDealDetails {
     id: number,
     tokenLogo: string | null,
     minimumAmountToHold: number
+}
+
+export interface CoinOwnerDeals {
+    id: number,
+    tokenName: string,
+    tokenSymbol: string,
+    tokenPrice: number,
+    maxPlayers: number,
+    participants: number,
+    reward: number,
+    daysToHold: number,
+    activated: boolean,
+    commissionPaid: boolean
 }
 
 export class DealsController {
@@ -581,6 +594,128 @@ export class DealsController {
             console.log("Error getting explore page deal details", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting explore page details", err);
             throw new Error("Error getting explore page deal details");
+        }
+    }
+
+    async getCoinOwnerDeals(dealsModel: DealsModel, smartcontract: SmartContract, address: string): Promise<CoinOwnerDeals[]> {
+        try {
+            const rawDeals = await dealsModel.getCoinHolderDealDetails(address);
+
+            const deals: CoinOwnerDeals[] = [];
+            const insertedAddresses: {
+                name: string,
+                address: string,
+                price: number,
+                symbol: string,
+                decimals: number
+            }[] = [];
+            const gottenPrices: { address: string, price: number }[] = [];
+
+            for (const deal of rawDeals) {
+                if (deal.tokenSymbol === null || deal.tokenName === null) {
+                    const isInserted = insertedAddresses.find((i) => i.address === deal.tokenAddress);
+                    if (isInserted) {
+                        deals.push({
+                            tokenName: isInserted.name,
+                            tokenPrice: isInserted.price,
+                            tokenSymbol: isInserted.symbol,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                        });
+                    } else {
+                        const tokenDetails = await smartcontract.getTokenDetails(deal.tokenAddress);
+                        if (!tokenDetails) {
+                            continue;
+                        }
+
+                        gottenPrices.push({ address: deal.tokenAddress, price: tokenDetails.price });
+
+                        await dealsModel.saveTokenDetails({
+                            address: deal.tokenAddress,
+                            symbol: tokenDetails.symbol,
+                            decimals: tokenDetails.decimals,
+                            logo: tokenDetails.logoURL,
+                            name: tokenDetails.name
+                        });
+
+                        deals.push({
+                            tokenName: tokenDetails.name,
+                            tokenPrice: tokenDetails.price,
+                            tokenSymbol: tokenDetails.symbol,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                        });
+
+                        insertedAddresses.push({
+                            address: deal.tokenAddress,
+                            name: tokenDetails.name,
+                            price: tokenDetails.price,
+                            symbol: tokenDetails.symbol,
+                            decimals: tokenDetails.decimals
+                        });
+                    }
+                } else {
+                    const priceGotten = gottenPrices.find((p) => p.address === deal.tokenAddress);
+
+                    if (!priceGotten) {
+                        const tokenPrice = await smartcontract.getTokenPrice(deal.tokenAddress);
+                        let price = 0;
+
+                        for (const d of tokenPrice.data) {
+                            for (const p of d.prices) {
+                                if (p.currency === "usd") {
+                                    price = p.value;
+                                    break;
+                                }
+                            }
+                        }
+
+                        gottenPrices.push({ address: deal.tokenAddress, price: price });
+
+                        deals.push({
+                            tokenName: deal.tokenName,
+                            tokenPrice: price,
+                            tokenSymbol: deal.tokenSymbol,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                        });
+                    } else {
+                        deals.push({
+                            tokenName: deal.tokenName,
+                            tokenPrice: priceGotten.price,
+                            tokenSymbol: deal.tokenSymbol,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                        });
+                    }
+                }
+            }
+
+            return deals;
+        } catch (err) {
+            console.error("Error getting coin owner deals", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting deals for coin owner", err);
+            throw new Error("Error getting coin owner deals");
         }
     }
 }

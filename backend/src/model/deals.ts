@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, lte, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lte, isNotNull, sql, count } from "drizzle-orm";
 import { ARBITRUM_CHAIN_MAINNET, ARBITRUM_CHAIN_TESNET } from "../constants";
 import db from "../db";
 import { dealsTable, tokenDetailsTable, userDealsTable } from "../db/schema";
@@ -52,6 +52,19 @@ export interface RawExploreDealDetails {
     tokenLogo: string | null,
     tokenName: string | null,
     minimumAmountToHold: number
+}
+
+export interface RawCoinOwnerDealDetails {
+    id: number,
+    tokenAddress: string,
+    tokenName: string | null,
+    tokenSymbol: string | null,
+    maxPlayers: number,
+    participants: number,
+    reward: number,
+    daysToHold: number,
+    activated: boolean,
+    commissionPaid: boolean
 }
 
 export class DealsModel {
@@ -521,7 +534,7 @@ export class DealsModel {
                     decimals: data[0].decimals
                 };
             }
-        } catch(err) {
+        } catch (err) {
             console.log("Error getting stored token details", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting stored token details", err);
             throw new Error("Error getting stored token details");
@@ -545,15 +558,15 @@ export class DealsModel {
                 minimumAmountToHold: dealsTable.minimum_amount_to_hold,
                 tokenName: tokenDetailsTable.name,
             }).from(dealsTable)
-            .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
-            .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
+                .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
+                .where(and(isNotNull(dealsTable.activationTxHash), isNotNull(dealsTable.commissionTxHash)));
 
             let deals: RawExploreDealDetails[] = [];
             for (const deal of dealsRes) {
                 const playersRes = await db.select({
                     address: userDealsTable.userAddress
                 }).from(userDealsTable)
-                .where(eq(userDealsTable.dealID, deal.id));
+                    .where(eq(userDealsTable.dealID, deal.id));
 
                 const totalPlayers = playersRes.length;
                 const players = playersRes.map((i) => i.address);
@@ -566,10 +579,39 @@ export class DealsModel {
             }
 
             return deals;
-        } catch(err) {
+        } catch (err) {
             console.error("Error getting explore page deal details from db", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting explore deals details", err);
             throw new Error("Error getting explore deal details");
+        }
+    }
+
+    async getCoinHolderDealDetails(address: string): Promise<RawCoinOwnerDealDetails[]> {
+        try {
+            const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            const rawDataRes = await db.select({
+                id: dealsTable.id,
+                tokenAddress: dealsTable.contract_address,
+                tokenName: tokenDetailsTable.name,
+                tokenSymbol: tokenDetailsTable.symbol,
+                maxPlayers: dealsTable.max_rewards,
+                participants: count(userDealsTable.userAddress),
+                reward: dealsTable.reward,
+                daysToHold: dealsTable.miniumum_days_to_hold,
+                activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+            }).from(dealsTable)
+            .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
+            .leftJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
+            .where(eq(dealsTable.coin_owner_address, address.toLowerCase()))
+            .groupBy(dealsTable.id, tokenDetailsTable.address, tokenDetailsTable.chain)
+            .orderBy(desc(dealsTable.id));
+
+            return rawDataRes;
+        } catch (err) {
+            console.error("Error getting coin holder deal details", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting coin holder deal details", err);
+            throw new Error("Could not get coin holder deal details");
         }
     }
 }

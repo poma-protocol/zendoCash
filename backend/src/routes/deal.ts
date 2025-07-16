@@ -99,7 +99,7 @@ router.get("/owner/:address", async (req, res) => {
         const parsed = addressSchema.safeParse(req.params.address);
         if (parsed.success) {
             const address = parsed.data;
-            const deals = await dealsController.getMany({ owner: address }, dealModel, smartContract);
+            const deals = await dealsController.getCoinOwnerDeals(dealModel, smartContract, address);
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
