@@ -91,7 +91,25 @@ export interface CoinOwnerDeals {
     reward: number,
     daysToHold: number,
     activated: boolean,
-    commissionPaid: boolean
+    commissionPaid: boolean,
+    startDate: Date,
+    endDate: Date,
+    tokenAddress: string,
+    code: string | null,
+    tokenDecimals: number,
+}
+
+export interface ParticipationDeals {
+    tokenName: string,
+    tokenSymbol: string,
+    reward: number,
+    daysHeld: number,
+    startDate: Date,
+    endDate: Date,
+    activated: boolean,
+    commissionPaid: boolean,
+    tokenPrice: number,
+    daysToHold: number
 }
 
 export class DealsController {
@@ -612,13 +630,14 @@ export class DealsController {
             const gottenPrices: { address: string, price: number }[] = [];
 
             for (const deal of rawDeals) {
-                if (deal.tokenSymbol === null || deal.tokenName === null) {
+                if (deal.tokenSymbol === null || deal.tokenName === null || deal.tokenDecimals === null) {
                     const isInserted = insertedAddresses.find((i) => i.address === deal.tokenAddress);
                     if (isInserted) {
                         deals.push({
                             tokenName: isInserted.name,
                             tokenPrice: isInserted.price,
                             tokenSymbol: isInserted.symbol,
+                            tokenDecimals: isInserted.decimals,
                             reward: deal.reward,
                             participants: deal.participants,
                             maxPlayers: deal.maxPlayers,
@@ -626,6 +645,10 @@ export class DealsController {
                             daysToHold: deal.daysToHold,
                             activated: deal.activated,
                             commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            tokenAddress: deal.tokenAddress,
+                            code: deal.code,
                         });
                     } else {
                         const tokenDetails = await smartcontract.getTokenDetails(deal.tokenAddress);
@@ -647,6 +670,7 @@ export class DealsController {
                             tokenName: tokenDetails.name,
                             tokenPrice: tokenDetails.price,
                             tokenSymbol: tokenDetails.symbol,
+                            tokenDecimals: tokenDetails.decimals,
                             reward: deal.reward,
                             participants: deal.participants,
                             maxPlayers: deal.maxPlayers,
@@ -654,6 +678,10 @@ export class DealsController {
                             daysToHold: deal.daysToHold,
                             activated: deal.activated,
                             commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            tokenAddress: deal.tokenAddress,
+                            code: deal.code,
                         });
 
                         insertedAddresses.push({
@@ -661,7 +689,137 @@ export class DealsController {
                             name: tokenDetails.name,
                             price: tokenDetails.price,
                             symbol: tokenDetails.symbol,
-                            decimals: tokenDetails.decimals
+                            decimals: tokenDetails.decimals,
+                        });
+                    }
+                } else {
+                    const priceGotten = gottenPrices.find((p) => p.address === deal.tokenAddress);
+
+                    if (!priceGotten) {
+                        const tokenPrice = await smartcontract.getTokenPrice(deal.tokenAddress);
+                        let price = 0;
+
+                        for (const d of tokenPrice.data) {
+                            for (const p of d.prices) {
+                                if (p.currency === "usd") {
+                                    price = p.value;
+                                    break;
+                                }
+                            }
+                        }
+
+                        gottenPrices.push({ address: deal.tokenAddress, price: price });
+
+                        deals.push({
+                            tokenName: deal.tokenName,
+                            tokenPrice: price,
+                            tokenSymbol: deal.tokenSymbol,
+                            tokenDecimals: deal.tokenDecimals,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            tokenAddress: deal.tokenAddress,
+                            code: deal.code
+                        });
+                    } else {
+                        deals.push({
+                            tokenName: deal.tokenName,
+                            tokenPrice: priceGotten.price,
+                            tokenSymbol: deal.tokenSymbol,
+                            tokenDecimals: deal.tokenDecimals,
+                            reward: deal.reward,
+                            participants: deal.participants,
+                            maxPlayers: deal.maxPlayers,
+                            id: deal.id,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            tokenAddress: deal.tokenAddress,
+                            code: deal.code,
+                        });
+                    }
+                }
+            }
+
+            return deals;
+        } catch (err) {
+            console.error("Error getting coin owner deals", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting deals for coin owner", err);
+            throw new Error("Error getting coin owner deals");
+        }
+    }
+
+    async getParticipantDeals(address: string, dealsModel: DealsModel, smartcontract: SmartContract): Promise<ParticipationDeals[]> {
+        try {
+            const rawDeals = await dealsModel.getParticipantDealDetails(address);
+
+            const deals: ParticipationDeals[] = [];
+            const insertedAddresses: {
+                name: string,
+                symbol: string,
+                address: string,
+                price: number,
+            }[] = [];
+            const gottenPrices: { address: string, price: number }[] = [];
+
+            for (const deal of rawDeals) {
+                if (deal.tokenName === null || deal.tokenSymbol === null) {
+                    const isInserted = insertedAddresses.find((i) => i.address === deal.tokenAddress);
+                    if (isInserted) {
+                        deals.push({
+                            tokenName: isInserted.name,
+                            tokenPrice: isInserted.price,
+                            tokenSymbol: isInserted.symbol,
+                            reward: deal.reward,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            daysHeld: deal.daysHeld
+                        });
+                    } else {
+                        const tokenDetails = await smartcontract.getTokenDetails(deal.tokenAddress);
+                        if (!tokenDetails) {
+                            continue;
+                        }
+
+                        gottenPrices.push({ address: deal.tokenAddress, price: tokenDetails.price });
+
+                        await dealsModel.saveTokenDetails({
+                            address: deal.tokenAddress,
+                            symbol: tokenDetails.symbol,
+                            decimals: tokenDetails.decimals,
+                            logo: tokenDetails.logoURL,
+                            name: tokenDetails.name
+                        });
+
+                        deals.push({
+                            tokenName: tokenDetails.name,
+                            tokenSymbol: tokenDetails.symbol,
+                            tokenPrice: tokenDetails.price,
+                            reward: deal.reward,
+                            daysToHold: deal.daysToHold,
+                            activated: deal.activated,
+                            commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            daysHeld: deal.daysHeld
+                        });
+
+                        insertedAddresses.push({
+                            address: deal.tokenAddress,
+                            name: tokenDetails.name,
+                            symbol: tokenDetails.symbol,
+                            price: tokenDetails.price,
                         });
                     }
                 } else {
@@ -687,25 +845,26 @@ export class DealsController {
                             tokenPrice: price,
                             tokenSymbol: deal.tokenSymbol,
                             reward: deal.reward,
-                            participants: deal.participants,
-                            maxPlayers: deal.maxPlayers,
-                            id: deal.id,
                             daysToHold: deal.daysToHold,
                             activated: deal.activated,
                             commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            daysHeld: deal.daysHeld
                         });
+
                     } else {
                         deals.push({
                             tokenName: deal.tokenName,
-                            tokenPrice: priceGotten.price,
                             tokenSymbol: deal.tokenSymbol,
+                            tokenPrice: priceGotten.price,
                             reward: deal.reward,
-                            participants: deal.participants,
-                            maxPlayers: deal.maxPlayers,
-                            id: deal.id,
                             daysToHold: deal.daysToHold,
                             activated: deal.activated,
                             commissionPaid: deal.commissionPaid,
+                            startDate: deal.startDate,
+                            endDate: deal.endDate,
+                            daysHeld: deal.daysHeld
                         });
                     }
                 }
@@ -713,9 +872,9 @@ export class DealsController {
 
             return deals;
         } catch (err) {
-            console.error("Error getting coin owner deals", err);
-            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting deals for coin owner", err);
-            throw new Error("Error getting coin owner deals");
+            console.error("Error getting participant deals", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Controller: Error getting deals for participant", err);
+            throw new Error("Error getting participant deals");
         }
     }
 }

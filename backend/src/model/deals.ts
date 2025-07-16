@@ -37,6 +37,19 @@ export interface SavedTokenDetails {
     logo: string | null
 }
 
+export interface RawParticipationDeals {
+    tokenName: string | null,
+    tokenAddress: string,
+    tokenSymbol: string | null,
+    reward: number,
+    daysHeld: number,
+    startDate: Date,
+    endDate: Date,
+    activated: boolean,
+    commissionPaid: boolean,
+    daysToHold: number
+}
+
 export interface RawExploreDealDetails {
     id: number,
     tokenAddress: string,
@@ -59,12 +72,16 @@ export interface RawCoinOwnerDealDetails {
     tokenAddress: string,
     tokenName: string | null,
     tokenSymbol: string | null,
+    tokenDecimals: number | null,
     maxPlayers: number,
     participants: number,
     reward: number,
     daysToHold: number,
     activated: boolean,
-    commissionPaid: boolean
+    commissionPaid: boolean,
+    startDate: Date,
+    endDate: Date,
+    code: string | null,
 }
 
 export class DealsModel {
@@ -594,12 +611,16 @@ export class DealsModel {
                 tokenAddress: dealsTable.contract_address,
                 tokenName: tokenDetailsTable.name,
                 tokenSymbol: tokenDetailsTable.symbol,
+                tokenDecimals: tokenDetailsTable.decimals,
                 maxPlayers: dealsTable.max_rewards,
                 participants: count(userDealsTable.userAddress),
                 reward: dealsTable.reward,
                 daysToHold: dealsTable.miniumum_days_to_hold,
                 activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
                 commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                startDate: dealsTable.start_date,
+                endDate: dealsTable.endDate,
+                code: dealsTable.code,
             }).from(dealsTable)
             .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.address, dealsTable.contract_address), eq(tokenDetailsTable.chain, chain)))
             .leftJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
@@ -612,6 +633,33 @@ export class DealsModel {
             console.error("Error getting coin holder deal details", err);
             await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting coin holder deal details", err);
             throw new Error("Could not get coin holder deal details");
+        }
+    }
+
+    async getParticipantDealDetails(address: string): Promise<RawParticipationDeals[]> {
+        try {
+            const chain = process.env.ENVIRONMENT === 'prod' ? ARBITRUM_CHAIN_MAINNET : ARBITRUM_CHAIN_TESNET;
+            const deals = await db.select({
+                tokenName: tokenDetailsTable.name,
+                tokenAddress: dealsTable.contract_address,
+                tokenSymbol: tokenDetailsTable.symbol,
+                reward: dealsTable.reward,
+                daysHeld: userDealsTable.counter,
+                startDate: dealsTable.start_date,
+                endDate: dealsTable.endDate,
+                activated: sql<boolean>`${dealsTable.activationTxHash} IS NOT NULL`,
+                commissionPaid: sql<boolean>`${dealsTable.commissionTxHash} IS NOT NULL`,
+                daysToHold: dealsTable.miniumum_days_to_hold
+            }).from(dealsTable)
+            .where(eq(userDealsTable.userAddress, address.toLowerCase()))
+            .innerJoin(userDealsTable, eq(userDealsTable.dealID, dealsTable.id))
+            .leftJoin(tokenDetailsTable, and(eq(tokenDetailsTable.chain, chain), eq(tokenDetailsTable.address, dealsTable.contract_address)))
+
+            return deals;
+        } catch(err) {
+            console.error("Error getting deals for participant", err);
+            await logger.sendEvent(PostHogEventTypes.ERROR, "Deals Model: Error getting deals for participant", err);
+            throw new Error("Error getting participant deals");
         }
     }
 }

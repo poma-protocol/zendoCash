@@ -74,7 +74,7 @@ router.get("/player/:address", async (req, res) => {
         const parsed = addressSchema.safeParse(req.params.address);
         if (parsed.success) {
             const address = parsed.data;
-            const deals = await dealsController.getMany({ playerAddress: address }, dealModel, smartContract);
+            const deals = await dealsController.getParticipantDeals(address, dealModel, smartContract);
             res.json(deals);
         } else {
             const error = parsed.error.issues[0].message;
